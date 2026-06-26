@@ -1,0 +1,204 @@
+"use client";
+import { useState } from "react";
+
+export default function Home() {
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Upload API
+      const upRes = await fetch("http://localhost:8000/api/uploads", {
+        method: "POST",
+        body: formData,
+      });
+      const { uploadId } = await upRes.json();
+
+      // Analyze API
+      const anRes = await fetch("http://localhost:8000/api/agents:analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uploadId }),
+      });
+      const data = await anRes.json();
+      setResult(data);
+    } catch (e) {
+      console.error(e);
+      alert("Error occurred");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <main className="p-8 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold mb-4">PoC Foundry - Upload</h1>
+      
+      <div className="mb-8 p-4 border rounded-lg bg-gray-50">
+        <input 
+          type="file" 
+          accept=".zip" 
+          onChange={(e) => setFile(e.target.files?.[0] || null)} 
+          className="mb-4 block"
+        />
+        <button 
+          onClick={handleUpload} 
+          disabled={!file || uploading}
+          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        >
+          {uploading ? "Analyzing..." : "Upload & Analyze"}
+        </button>
+      </div>
+
+      {result && (
+        <div className="p-4 border rounded-lg shadow space-y-4">
+          <h2 className="text-2xl font-semibold">Results</h2>
+          
+          <div className="p-4 rounded text-white font-bold text-lg bg-gray-800">
+            Status: <span className={result.status === "PASSED" ? "text-green-400" : "text-red-400"}>{result.status}</span>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-medium border-b pb-2 mb-2">Charter Evaluation</h3>
+            <pre className="bg-gray-100 p-4 rounded overflow-auto text-sm">
+              {JSON.stringify(result.charter, null, 2)}
+            </pre>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-medium border-b pb-2 mb-2">Technical Analysis</h3>
+            <pre className="bg-gray-100 p-4 rounded overflow-auto text-sm">
+              {JSON.stringify(result.analysis, null, 2)}
+            </pre>
+          </div>
+
+          {result.status === 'PASSED' && (
+            <div className="mt-4">
+              <button 
+                onClick={async () => {
+                  setUploading(true);
+                  try {
+                    const res = await fetch(`http://localhost:8000/api/agents/${result.uploadId}:register`, { method: 'POST' });
+                    const json = await res.json();
+                    alert(`Registered! Repo URL: ${json.repoUrl}`);
+                    setResult({...result, status: 'REGISTERED'});
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setUploading(false);
+                  }
+                }}
+                disabled={uploading}
+                className="bg-green-600 text-white px-4 py-2 rounded"
+              >
+                Register to GitHub
+              </button>
+            </div>
+          )}
+          
+          {result.status === 'REGISTERED' && (
+            <div className="mt-4">
+              <button 
+                onClick={async () => {
+                  setUploading(true);
+                  try {
+                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/issues:plan`, { method: 'POST' });
+                    alert(`Issues planned!`);
+                    setResult({...result, status: 'PLANNING'});
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setUploading(false);
+                  }
+                }}
+                disabled={uploading}
+                className="bg-purple-600 text-white px-4 py-2 rounded"
+              >
+                Plan Issues
+              </button>
+            </div>
+          )}
+          
+          {result.status === 'PLANNING' && (
+            <div className="mt-4">
+              <p>Note: Assuming issue id "1" for MVP test</p>
+              <button 
+                onClick={async () => {
+                  setUploading(true);
+                  try {
+                    const res = await fetch(`http://localhost:8000/api/agents/${result.uploadId}/issues/1:implement`, { method: 'POST' });
+                    const json = await res.json();
+                    alert(`PR created: ${json.prUrl}`);
+                    setResult({...result, status: 'PR_OPEN'});
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setUploading(false);
+                  }
+                }}
+                disabled={uploading}
+                className="bg-blue-600 text-white px-4 py-2 rounded"
+              >
+                Implement Issue 1
+              </button>
+            </div>
+          )}
+          
+          {result.status === 'PR_OPEN' && (
+            <div className="mt-4">
+              <p>Note: Assuming PR number 1 for MVP test</p>
+              <button 
+                onClick={async () => {
+                  setUploading(true);
+                  try {
+                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/pulls/1:review`, { method: 'POST' });
+                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/pulls/1:deploy-preview`, { method: 'POST' });
+                    alert(`Reviewed & Deploy Preview triggered`);
+                    setResult({...result, status: 'PREVIEW_READY'});
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setUploading(false);
+                  }
+                }}
+                disabled={uploading}
+                className="bg-indigo-600 text-white px-4 py-2 rounded"
+              >
+                Review & Deploy Preview
+              </button>
+            </div>
+          )}
+
+          {result.status === 'PREVIEW_READY' && (
+            <div className="mt-4">
+              <button 
+                onClick={async () => {
+                  setUploading(true);
+                  try {
+                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/pulls/1:approve`, { method: 'POST' });
+                    alert(`Approved & Merged!`);
+                    setResult({...result, status: 'MERGED'});
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setUploading(false);
+                  }
+                }}
+                disabled={uploading}
+                className="bg-green-600 text-white px-4 py-2 rounded"
+              >
+                Approve PR
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </main>
+  );
+}
