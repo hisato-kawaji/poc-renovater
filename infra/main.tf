@@ -101,3 +101,68 @@ resource "google_project_iam_member" "api_vertex" {
   role    = "roles/aiplatform.user"
   member  = "serviceAccount:${google_service_account.api.email}"
 }
+
+# Cloud Run Service for API
+resource "google_cloud_run_v2_service" "api" {
+  name     = "poc-foundry-api"
+  location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    service_account = google_service_account.api.email
+    
+    # Placeholder image. CI/CD will replace this with the real image.
+    containers {
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
+      
+      env {
+        name  = "GOOGLE_CLOUD_PROJECT"
+        value = var.project_id
+      }
+      env {
+        name  = "GOOGLE_GENAI_USE_VERTEXAI"
+        value = "1"
+      }
+      env {
+        name  = "GCS_UPLOAD_BUCKET"
+        value = google_storage_bucket.uploads.name
+      }
+    }
+  }
+}
+
+resource "google_cloud_run_service_iam_member" "api_invoker" {
+  location = google_cloud_run_v2_service.api.location
+  project  = google_cloud_run_v2_service.api.project
+  service  = google_cloud_run_v2_service.api.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# Cloud Run Service for Web (Frontend)
+resource "google_cloud_run_v2_service" "web" {
+  name     = "poc-foundry-web"
+  location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    service_account = google_service_account.deploy.email
+    
+    containers {
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
+      
+      env {
+        name  = "NEXT_PUBLIC_API_URL"
+        value = google_cloud_run_v2_service.api.uri
+      }
+    }
+  }
+}
+
+resource "google_cloud_run_service_iam_member" "web_invoker" {
+  location = google_cloud_run_v2_service.web.location
+  project  = google_cloud_run_v2_service.web.project
+  service  = google_cloud_run_v2_service.web.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
