@@ -53,6 +53,13 @@ async def plan_issues(upload_id: str, background_tasks: BackgroundTasks, usecase
     background_tasks.add_task(run_with_error_handling, upload_id, "plan_issues", usecase, "plan_issues", upload_id)
     return {"message": "Issue planning started in background"}
 
+@router.get("/agents/{upload_id}/issues")
+async def get_issues(upload_id: str, usecase: AgentUseCase = Depends(get_agent_usecase)):
+    try:
+        return await usecase.get_issues(upload_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
 @router.post("/agents/{upload_id}/issues/{issue_id}:implement", status_code=status.HTTP_202_ACCEPTED)
 async def implement_issue(upload_id: str, issue_id: str, background_tasks: BackgroundTasks, usecase: AgentUseCase = Depends(get_agent_usecase)):
     try:

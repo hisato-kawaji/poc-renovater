@@ -159,6 +159,12 @@ class AgentUseCase:
         if not any(i["id"] == issue_id for i in issues):
             raise NotFoundError(f"Issue {issue_id} not found")
 
+    async def get_issues(self, upload_id: str) -> List[Dict[str, Any]]:
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
+        return await self.repo.get_issues(upload_id)
+
     async def implement_issue(self, upload_id: str, issue_id: str) -> Dict[str, Any]:
         doc = await self.repo.get(upload_id)
         if not doc:
