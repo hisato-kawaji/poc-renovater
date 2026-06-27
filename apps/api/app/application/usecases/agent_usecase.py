@@ -303,7 +303,7 @@ class AgentUseCase:
             raise NotFoundError(f"Agent {upload_id} not found")
             
         repo_name = doc["repo"]["fullName"].split("/")[-1]
-        self.scm.review_pr(repo_name, pr_number, "approved", "Approved by human")
+        self.scm.merge_pr(repo_name, pr_number)
         await self.repo.update(upload_id, {"status": AgentStatus.MERGED.value})
         return {"merged": True}
 
