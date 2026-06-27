@@ -2,6 +2,7 @@ import zipfile
 import io
 import sys
 import os
+import logging
 from typing import Dict, Any, Tuple
 from app.deps import Deps
 from app.application.agents.ingest import IngestAgentClient
@@ -10,14 +11,31 @@ from app.application.agents.repo import RepoAgentClient
 from app.application.agents.issue_planner import IssuePlannerClient
 from app.application.agents.coding import CodingAgentClient
 from app.application.agents.review import ReviewAgentClient
+from app.domain.repositories.agent_repository import AgentRepository
+from app.ports.storage import StoragePort
+from app.ports.scm import ScmPort
+from app.settings import Settings
+from app.domain.models import AgentStatus, NotFoundError, ConflictError
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../../packages")))
 from shared.python.schemas import Analysis, CharterEvaluation
 
+logger = logging.getLogger(__name__)
+
 class AgentUseCase:
-    def __init__(self, deps: Deps):
-        self.deps = deps
-        self.repo = deps.agent_repo
+    def __init__(
+        self,
+        agent_repo: AgentRepository,
+        storage: StoragePort,
+        scm: ScmPort,
+        settings: Settings,
+        deps_for_clients: Deps # Still needed for AgentClients temporarily
+    ):
+        self.repo = agent_repo
+        self.storage = storage
+        self.scm = scm
+        self.settings = settings
+        self.deps = deps_for_clients
 
     def _extract_zip(self, zip_bytes: bytes) -> Tuple[str, Dict[str, str]]:
         source_tree = []
@@ -31,10 +49,10 @@ class AgentUseCase:
                         file_contents[info.filename] = content
                     except UnicodeDecodeError:
                         pass
-        return "\\n".join(source_tree), file_contents
+        return "\n".join(source_tree), file_contents
 
     async def analyze(self, upload_id: str) -> Dict[str, Any]:
-        zip_bytes = self.deps.storage.download_zip(upload_id)
+        zip_bytes = self.storage.download_zip(upload_id)
         source_tree_str, file_contents = self._extract_zip(zip_bytes)
 
         client = IngestAgentClient(self.deps)
@@ -43,20 +61,20 @@ class AgentUseCase:
         charter_client = CharterAgentClient(self.deps)
         charter_eval = await charter_client.evaluate(analysis, source_tree_str, file_contents)
 
-        status = "REJECTED"
-        if charter_eval.isPassed and charter_eval.score >= self.deps.settings.charter_score_threshold:
-            status = "PASSED"
+        status = AgentStatus.REJECTED
+        if charter_eval.isPassed and charter_eval.score >= self.settings.charter_score_threshold:
+            status = AgentStatus.PASSED
 
         await self.repo.save(upload_id, {
             "id": upload_id,
-            "status": status,
+            "status": status.value,
             "analysis": analysis.model_dump(),
             "charter": charter_eval.model_dump()
         })
 
         return {
             "uploadId": upload_id,
-            "status": status,
+            "status": status.value,
             "analysis": analysis.model_dump(),
             "charter": charter_eval.model_dump()
         }
@@ -64,14 +82,14 @@ class AgentUseCase:
     async def register(self, upload_id: str) -> Dict[str, Any]:
         doc = await self.repo.get(upload_id)
         if not doc:
-            raise ValueError("not found")
-        if doc.get("status") != "PASSED":
-            raise ValueError("Agent has not passed the Charter Gate")
+            raise NotFoundError(f"Agent {upload_id} not found")
+        if doc.get("status") != AgentStatus.PASSED.value:
+            raise ConflictError("Agent has not passed the Charter Gate")
 
         analysis = Analysis.model_validate(doc["analysis"])
         charter = CharterEvaluation.model_validate(doc["charter"])
 
-        zip_bytes = self.deps.storage.download_zip(upload_id)
+        zip_bytes = self.storage.download_zip(upload_id)
         source_tree_str, file_contents = self._extract_zip(zip_bytes)
 
         client = RepoAgentClient(self.deps)
@@ -79,10 +97,10 @@ class AgentUseCase:
         repo_url, repo_name = await client.execute(plan, source_tree_str, file_contents)
 
         await self.repo.update(upload_id, {
-            "status": "REGISTERED",
+            "status": AgentStatus.REGISTERED.value,
             "repo": {
                 "provider": "github",
-                "fullName": f"{self.deps.settings.github_org}/{repo_name}",
+                "fullName": f"{self.settings.github_org}/{repo_name}",
                 "url": repo_url
             }
         })
@@ -91,9 +109,9 @@ class AgentUseCase:
     async def plan_issues(self, upload_id: str) -> Dict[str, Any]:
         doc = await self.repo.get(upload_id)
         if not doc:
-            raise ValueError("not found")
-        if doc.get("status") not in ["REGISTERED", "MERGED", "IDLE"]:
-            raise ValueError("Agent is not ready for issue planning")
+            raise NotFoundError(f"Agent {upload_id} not found")
+        if doc.get("status") not in [AgentStatus.REGISTERED.value, AgentStatus.MERGED.value, AgentStatus.IDLE.value]:
+            raise ConflictError("Agent is not ready for issue planning")
 
         analysis = Analysis.model_validate(doc["analysis"])
         charter = CharterEvaluation.model_validate(doc["charter"])
@@ -103,7 +121,7 @@ class AgentUseCase:
         plan = await client.plan(analysis, charter)
         created_issues = await client.execute(repo_name, plan)
 
-        await self.repo.update(upload_id, {"status": "PLANNING"})
+        await self.repo.update(upload_id, {"status": AgentStatus.PLANNING.value})
         for i, issue in enumerate(plan.issues):
             issue_id = str(i+1)
             await self.repo.save_issue(upload_id, issue_id, {
@@ -120,7 +138,7 @@ class AgentUseCase:
     async def implement_issue(self, upload_id: str, issue_id: str) -> Dict[str, Any]:
         doc = await self.repo.get(upload_id)
         if not doc:
-            raise ValueError("agent not found")
+            raise NotFoundError(f"Agent {upload_id} not found")
 
         charter = CharterEvaluation.model_validate(doc["charter"])
         repo_name = doc["repo"]["fullName"].split("/")[-1]
@@ -128,13 +146,13 @@ class AgentUseCase:
         issues = await self.repo.get_issues(upload_id)
         issue_doc = next((i for i in issues if i["id"] == issue_id), None)
         if not issue_doc:
-            raise ValueError("issue not found")
+            raise NotFoundError(f"Issue {issue_id} not found")
 
         client = CodingAgentClient(self.deps)
         code_change = await client.implement(issue_doc, charter, repo_name)
         url, branch = await client.execute(repo_name, code_change)
 
-        await self.repo.update(upload_id, {"status": "PR_OPEN"})
+        await self.repo.update(upload_id, {"status": AgentStatus.PR_OPEN.value})
         await self.repo.update_issue(upload_id, issue_id, {
             "status": "in_progress",
             "prUrl": url
@@ -152,7 +170,7 @@ class AgentUseCase:
     async def review_pull(self, upload_id: str, pr_number: int) -> Dict[str, Any]:
         doc = await self.repo.get(upload_id)
         if not doc:
-            raise ValueError("agent not found")
+            raise NotFoundError(f"Agent {upload_id} not found")
 
         charter = CharterEvaluation.model_validate(doc["charter"])
         repo_name = doc["repo"]["fullName"].split("/")[-1]
@@ -169,15 +187,15 @@ class AgentUseCase:
                 if issue_d:
                     issue_data = issue_d
 
-        diff = self.deps.scm.get_pr_diff(repo_name, pr_number)
+        diff = self.scm.get_pr_diff(repo_name, pr_number)
 
         client = ReviewAgentClient(self.deps)
         review_result = await client.review(diff, charter, issue_data)
         await client.execute(repo_name, pr_number, review_result)
 
-        await self.repo.update(upload_id, {
-            "status": "PREVIEW_READY" if review_result.state == "approved" else "CHANGES_REQUESTED"
-        })
+        new_status = AgentStatus.PREVIEW_READY.value if review_result.state == "approved" else AgentStatus.CHANGES_REQUESTED.value
+        await self.repo.update(upload_id, {"status": new_status})
+        
         if pull_doc:
             await self.repo.update_pull(upload_id, pr_number, {
                 "reviewState": review_result.state
@@ -198,11 +216,14 @@ class AgentUseCase:
 
     async def approve_pull(self, upload_id: str, pr_number: int) -> Dict[str, Any]:
         doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
+            
         repo_name = doc["repo"]["fullName"].split("/")[-1]
-        self.deps.scm.review_pr(repo_name, pr_number, "approved", "Approved by human")
-        await self.repo.update(upload_id, {"status": "MERGED"})
+        self.scm.review_pr(repo_name, pr_number, "approved", "Approved by human")
+        await self.repo.update(upload_id, {"status": AgentStatus.MERGED.value})
         return {"merged": True}
 
     async def stop_agent(self, upload_id: str) -> Dict[str, Any]:
-        await self.repo.update(upload_id, {"status": "IDLE"})
+        await self.repo.update(upload_id, {"status": AgentStatus.IDLE.value})
         return {"status": "stopped"}
