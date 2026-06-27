@@ -24,6 +24,11 @@ resource "google_service_account" "preview_runtime" {
   display_name = "Preview Runtime Service Account"
 }
 
+resource "google_service_account" "web" {
+  account_id   = "sa-web"
+  display_name = "Web Frontend Service Account"
+}
+
 # Storage Bucket
 resource "google_storage_bucket" "uploads" {
   name          = "${var.project_id}-uploads"
@@ -110,10 +115,21 @@ resource "google_cloud_run_v2_service" "api" {
 
   template {
     service_account = google_service_account.api.email
+    max_instance_request_concurrency = 80
+    scaling {
+      max_instance_count = 5
+    }
     
     # Placeholder image. CI/CD will replace this with the real image.
     containers {
       image = "us-docker.pkg.dev/cloudrun/container/hello"
+      
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
       
       env {
         name  = "GOOGLE_CLOUD_PROJECT"
@@ -129,8 +145,16 @@ resource "google_cloud_run_v2_service" "api" {
       }
     }
   }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image
+    ]
+  }
 }
 
+# The API is called directly from the user's browser (Next.js client-side), 
+# so it needs to be public.
 resource "google_cloud_run_service_iam_member" "api_invoker" {
   location = google_cloud_run_v2_service.api.location
   project  = google_cloud_run_v2_service.api.project
@@ -146,16 +170,34 @@ resource "google_cloud_run_v2_service" "web" {
   ingress  = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account = google_service_account.deploy.email
+    service_account = google_service_account.web.email
+    scaling {
+      max_instance_count = 5
+    }
     
     containers {
       image = "us-docker.pkg.dev/cloudrun/container/hello"
       
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+      
+      # Passed as API_URL to be dynamically read or proxied at runtime by Next.js server,
+      # avoiding build-time NEXT_PUBLIC_ embedding.
       env {
-        name  = "NEXT_PUBLIC_API_URL"
+        name  = "API_URL"
         value = google_cloud_run_v2_service.api.uri
       }
     }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image
+    ]
   }
 }
 
