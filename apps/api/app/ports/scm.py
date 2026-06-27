@@ -29,3 +29,6 @@ class ScmPort(Protocol):
         
     def review_pr(self, repo_name: str, pr_number: int, state: str, body: str):
         pass
+
+    def merge_pr(self, repo_name: str, pr_number: int):
+        pass

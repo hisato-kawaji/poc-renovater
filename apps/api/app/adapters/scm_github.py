@@ -109,4 +109,14 @@ class GitHubScmAdapter(ScmPort):
         repo = gh.get_repo(f"{self.org}/{repo_name}")
         pr = repo.get_pull(pr_number)
         event = "APPROVE" if state == "approved" else "REQUEST_CHANGES"
-        pr.create_review(body=body, event=event)
+        try:
+            pr.create_review(body=body, event=event)
+        except Exception as e:
+            print(f"Failed to create review: {e}. Falling back to COMMENT.")
+            pr.create_review(body=body, event="COMMENT")
+
+    def merge_pr(self, repo_name: str, pr_number: int):
+        gh = self._get_github()
+        repo = gh.get_repo(f"{self.org}/{repo_name}")
+        pr = repo.get_pull(pr_number)
+        pr.merge(merge_method="squash")
