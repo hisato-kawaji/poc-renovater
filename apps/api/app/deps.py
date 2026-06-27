@@ -17,6 +17,7 @@ class Deps:
         self.scm: ScmPort = GitHubScmAdapter(
             app_id=str(settings.github_app_id),
             installation_id=str(settings.github_app_installation_id),
+            private_key=settings.github_app_private_key,
             org=settings.github_org,
             project_id=settings.google_cloud_project
         )

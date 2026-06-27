@@ -5,16 +5,20 @@ from app.ports.scm import ScmPort
 from google.cloud import secretmanager
 
 class GitHubScmAdapter(ScmPort):
-    def __init__(self, app_id: str, installation_id: str, org: str, project_id: str):
+    def __init__(self, app_id: str, installation_id: str, private_key: str, org: str, project_id: str):
         self.app_id = app_id
         self.installation_id = installation_id
         self.org = org
         
-        client = secretmanager.SecretManagerServiceClient()
-        name = f"projects/{project_id}/secrets/GITHUB_APP_PRIVATE_KEY/versions/latest"
-        response = client.access_secret_version(request={"name": name})
-        private_key = response.payload.data.decode("UTF-8")
-        
+        if private_key.startswith("projects/"):
+            client = secretmanager.SecretManagerServiceClient()
+            name = private_key
+            response = client.access_secret_version(request={"name": name})
+            private_key = response.payload.data.decode("UTF-8")
+        else:
+            # Replace escaped newlines with actual newlines
+            private_key = private_key.replace('\\n', '\n')
+            
         self.integration = GithubIntegration(self.app_id, private_key)
     
     def _get_github(self):
