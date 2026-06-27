@@ -35,6 +35,7 @@ The user is asking questions about the evaluation or the requirements.
 Current Analysis: {analysis_data}
 Current Evaluation: {charter_data}
 Please answer the user's questions clearly and help them understand what needs to be changed.
+ALWAYS reply in Japanese.
 """
         model = os.getenv("GEMINI_MODEL_PRO", "gemini-2.5-pro")
         

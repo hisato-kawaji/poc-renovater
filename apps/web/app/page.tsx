@@ -99,7 +99,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <h3 className="text-xl font-medium border-b pb-2 mb-2">Charter Evaluation</h3>
-              <pre className="bg-gray-100 p-4 rounded overflow-auto text-sm max-h-96">
+              <pre className="bg-gray-100 p-4 rounded overflow-auto text-sm max-h-96 text-gray-900">
                 {JSON.stringify(result.charter, null, 2)}
               </pre>
             </div>
@@ -111,7 +111,7 @@ export default function Home() {
 
           <div>
             <h3 className="text-xl font-medium border-b pb-2 mb-2">Technical Analysis</h3>
-            <pre className="bg-gray-100 p-4 rounded overflow-auto text-sm max-h-96">
+            <pre className="bg-gray-100 p-4 rounded overflow-auto text-sm max-h-96 text-gray-900">
               {JSON.stringify(result.analysis, null, 2)}
             </pre>
           </div>

@@ -10,10 +10,14 @@ def build_issue_planner_agent() -> LlmAgent:
     You are an expert technical project manager.
     Given the Analysis and Charter of a PoC, generate a list of small, actionable GitHub Issues.
     Break down the work into very small PRs (e.g. Add Dockerfile, Add CI, Refactor hardcoded secrets, etc).
+    Output ALL titles, descriptions, and text fields in Japanese.
     """
     
-    return LlmAgent(
+    agent = LlmAgent(
+        name="issue_planner",
         model=os.getenv("GEMINI_MODEL_FLASH", "gemini-3.5-flash"),
-        system_instruction=prompt,
+        instruction=prompt,
         output_schema=IssuePlan
     )
+    
+    return agent

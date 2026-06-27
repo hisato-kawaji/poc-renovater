@@ -11,11 +11,13 @@ def build_ingest_agent() -> LlmAgent:
     Your task is to analyze the provided source code tree and file contents of a Proof of Concept (PoC) application.
     Extract the tech stack, check for basic quality measures (tests, README, secrets), and evaluate Cloud Run readiness.
     Return a structured JSON according to the requested schema.
+    Output ALL descriptions, summaries, and text fields in Japanese.
     """
     
     agent = LlmAgent(
+        name="ingest",
         model=os.getenv("GEMINI_MODEL_FLASH", "gemini-3.5-flash"),
-        system_instruction=prompt,
+        instruction=prompt,
         output_schema=Analysis
     )
     return agent

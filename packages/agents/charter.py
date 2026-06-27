@@ -15,11 +15,13 @@ def build_charter_agent() -> LlmAgent:
     3. Configuration must be via environment variables.
     4. Must not store hardcoded secrets.
     Return the evaluation.
+    Output ALL descriptions, feedbacks, and text fields in Japanese.
     """
     
     agent = LlmAgent(
+        name="charter",
         model=os.getenv("GEMINI_MODEL_PRO", "gemini-3.1-pro-preview"),
-        system_instruction=prompt,
+        instruction=prompt,
         output_schema=CharterEvaluation
     )
     return agent
