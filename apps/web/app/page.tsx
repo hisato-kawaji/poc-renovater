@@ -30,12 +30,32 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ uploadId }),
       });
-      const data = await anRes.json();
-      setResult(data);
+      
+      // Poll for status
+      const pollResult = async () => {
+        try {
+          const res = await fetch(`http://localhost:8000/api/agents/${uploadId}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.status) {
+              setResult({ uploadId, ...data });
+              if (['PASSED', 'REJECTED', 'ERROR'].includes(data.status)) {
+                setUploading(false);
+                return;
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Polling error", e);
+        }
+        setTimeout(pollResult, 3000);
+      };
+      
+      pollResult();
+
     } catch (e) {
       console.error(e);
       alert("Error occurred");
-    } finally {
       setUploading(false);
     }
   };

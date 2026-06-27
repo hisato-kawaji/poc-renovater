@@ -57,6 +57,12 @@ class AgentUseCase:
         except Exception as e:
             logger.error(f"Failed to mark agent {upload_id} as failed: {e}", exc_info=True)
 
+    async def get_agent(self, upload_id: str) -> Dict[str, Any]:
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
+        return doc
+
     async def analyze(self, upload_id: str) -> Dict[str, Any]:
         zip_bytes = self.storage.download_zip(upload_id)
         source_tree_str, file_contents = self._extract_zip(zip_bytes)

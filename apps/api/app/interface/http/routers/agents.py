@@ -29,6 +29,13 @@ async def analyze_agent(req: AnalyzeRequest, background_tasks: BackgroundTasks, 
     background_tasks.add_task(run_with_error_handling, req.uploadId, "analyze", usecase, "analyze", req.uploadId)
     return {"message": "Analysis started in background", "uploadId": req.uploadId}
 
+@router.get("/agents/{upload_id}")
+async def get_agent(upload_id: str, usecase: AgentUseCase = Depends(get_agent_usecase)):
+    try:
+        return await usecase.get_agent(upload_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
 @router.post("/agents/{upload_id}:register", status_code=status.HTTP_202_ACCEPTED)
 async def register_agent(upload_id: str, background_tasks: BackgroundTasks, usecase: AgentUseCase = Depends(get_agent_usecase)):
     try:
