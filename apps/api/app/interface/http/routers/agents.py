@@ -73,6 +73,26 @@ async def review_pull(upload_id: str, pr_number: int, background_tasks: Backgrou
     background_tasks.add_task(run_with_error_handling, upload_id, "review_pull", usecase, "review_pull", upload_id, pr_number)
     return {"message": "Review started in background"}
 
+class ChatMessageRequest(BaseModel):
+    message: str
+
+@router.get("/agents/{upload_id}/charter/messages")
+async def get_charter_messages(upload_id: str, usecase: AgentUseCase = Depends(get_agent_usecase)):
+    try:
+        return await usecase.get_charter_messages(upload_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.post("/agents/{upload_id}/charter/messages")
+async def send_charter_message(upload_id: str, req: ChatMessageRequest, usecase: AgentUseCase = Depends(get_agent_usecase)):
+    try:
+        return await usecase.send_charter_message(upload_id, req.message)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to send chat message for agent {upload_id}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
 @router.post("/agents/{upload_id}/pulls/{pr_number}:deploy-preview")
 async def deploy_preview(upload_id: str, pr_number: int, usecase: AgentUseCase = Depends(get_agent_usecase)):
     try:
