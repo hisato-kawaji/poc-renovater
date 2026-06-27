@@ -24,6 +24,11 @@ resource "google_service_account" "preview_runtime" {
   display_name = "Preview Runtime Service Account"
 }
 
+resource "google_service_account" "web" {
+  account_id   = "sa-web"
+  display_name = "Web Frontend Service Account"
+}
+
 # Storage Bucket
 resource "google_storage_bucket" "uploads" {
   name          = "${var.project_id}-uploads"
@@ -100,4 +105,106 @@ resource "google_project_iam_member" "api_vertex" {
   project = var.project_id
   role    = "roles/aiplatform.user"
   member  = "serviceAccount:${google_service_account.api.email}"
+}
+
+# Cloud Run Service for API
+resource "google_cloud_run_v2_service" "api" {
+  name     = "poc-foundry-api"
+  location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    service_account = google_service_account.api.email
+    max_instance_request_concurrency = 80
+    scaling {
+      max_instance_count = 5
+    }
+    
+    # Placeholder image. CI/CD will replace this with the real image.
+    containers {
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
+      
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+      
+      env {
+        name  = "GOOGLE_CLOUD_PROJECT"
+        value = var.project_id
+      }
+      env {
+        name  = "GOOGLE_GENAI_USE_VERTEXAI"
+        value = "1"
+      }
+      env {
+        name  = "GCS_UPLOAD_BUCKET"
+        value = google_storage_bucket.uploads.name
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image
+    ]
+  }
+}
+
+# The API is called directly from the user's browser (Next.js client-side), 
+# so it needs to be public.
+resource "google_cloud_run_service_iam_member" "api_invoker" {
+  location = google_cloud_run_v2_service.api.location
+  project  = google_cloud_run_v2_service.api.project
+  service  = google_cloud_run_v2_service.api.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# Cloud Run Service for Web (Frontend)
+resource "google_cloud_run_v2_service" "web" {
+  name     = "poc-foundry-web"
+  location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    service_account = google_service_account.web.email
+    scaling {
+      max_instance_count = 5
+    }
+    
+    containers {
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
+      
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+      
+      # Passed as API_URL to be dynamically read or proxied at runtime by Next.js server,
+      # avoiding build-time NEXT_PUBLIC_ embedding.
+      env {
+        name  = "API_URL"
+        value = google_cloud_run_v2_service.api.uri
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image
+    ]
+  }
+}
+
+resource "google_cloud_run_service_iam_member" "web_invoker" {
+  location = google_cloud_run_v2_service.web.location
+  project  = google_cloud_run_v2_service.web.project
+  service  = google_cloud_run_v2_service.web.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
