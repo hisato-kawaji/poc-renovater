@@ -2,6 +2,7 @@
 import { useState } from "react";
 
 import CharterChat from "../components/CharterChat";
+import IssueList from "../components/IssueList";
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
@@ -125,7 +126,7 @@ export default function Home() {
                   setUploading(true);
                   try {
                     await fetch(`http://localhost:8000/api/agents/${result.uploadId}/issues:plan`, { method: 'POST' });
-                    alert(`Issues planned!`);
+                    alert(`Issues planning started in background!`);
                     setResult({...result, status: 'PLANNING'});
                   } catch (e) {
                     console.error(e);
@@ -141,35 +142,21 @@ export default function Home() {
             </div>
           )}
           
-          {result.status === 'PLANNING' && (
-            <div className="mt-4">
-              <p>Note: Assuming issue id "1" for MVP test</p>
-              <button 
-                onClick={async () => {
-                  setUploading(true);
-                  try {
-                    const res = await fetch(`http://localhost:8000/api/agents/${result.uploadId}/issues/1:implement`, { method: 'POST' });
-                    const json = await res.json();
-                    alert(`PR created: ${json.prUrl}`);
-                    const prNumber = json.prUrl.split('/').pop();
-                    setResult({...result, status: 'PR_OPEN', prNumber, prBranch: json.branch});
-                  } catch (e) {
-                    console.error(e);
-                  } finally {
-                    setUploading(false);
-                  }
-                }}
-                disabled={uploading}
-                className="bg-blue-600 text-white px-4 py-2 rounded"
-              >
-                Implement Issue 1
-              </button>
+          {['PLANNING', 'PR_OPEN', 'PREVIEW_READY', 'MERGED'].includes(result.status) && (
+            <div className="mt-4 border-t pt-4">
+              <h3 className="text-xl font-medium mb-4">Issues & Implementation</h3>
+              <IssueList 
+                uploadId={result.uploadId} 
+                onImplemented={(prUrl, branch) => {
+                  setResult({...result, status: 'PR_OPEN', prNumber: prUrl.split('/').pop(), prBranch: branch});
+                }} 
+              />
             </div>
           )}
           
           {result.status === 'PR_OPEN' && (
-            <div className="mt-4">
-              <p>PR Created! (Branch: {result.prBranch})</p>
+            <div className="mt-4 border-t pt-4">
+              <p>Active PR: {result.prBranch}</p>
               <button 
                 onClick={async () => {
                   setUploading(true);
