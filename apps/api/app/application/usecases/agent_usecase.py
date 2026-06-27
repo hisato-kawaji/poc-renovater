@@ -51,6 +51,12 @@ class AgentUseCase:
                         pass
         return "\n".join(source_tree), file_contents
 
+    async def mark_as_failed(self, upload_id: str, error_msg: str):
+        try:
+            await self.repo.update(upload_id, {"status": AgentStatus.ERROR.value, "error": error_msg})
+        except Exception as e:
+            logger.error(f"Failed to mark agent {upload_id} as failed: {e}", exc_info=True)
+
     async def analyze(self, upload_id: str) -> Dict[str, Any]:
         zip_bytes = self.storage.download_zip(upload_id)
         source_tree_str, file_contents = self._extract_zip(zip_bytes)
@@ -79,12 +85,17 @@ class AgentUseCase:
             "charter": charter_eval.model_dump()
         }
 
-    async def register(self, upload_id: str) -> Dict[str, Any]:
+    async def ensure_can_register(self, upload_id: str):
         doc = await self.repo.get(upload_id)
         if not doc:
             raise NotFoundError(f"Agent {upload_id} not found")
         if doc.get("status") != AgentStatus.PASSED.value:
             raise ConflictError("Agent has not passed the Charter Gate")
+
+    async def register(self, upload_id: str) -> Dict[str, Any]:
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
 
         analysis = Analysis.model_validate(doc["analysis"])
         charter = CharterEvaluation.model_validate(doc["charter"])
@@ -106,12 +117,17 @@ class AgentUseCase:
         })
         return {"repoUrl": repo_url}
 
-    async def plan_issues(self, upload_id: str) -> Dict[str, Any]:
+    async def ensure_can_plan_issues(self, upload_id: str):
         doc = await self.repo.get(upload_id)
         if not doc:
             raise NotFoundError(f"Agent {upload_id} not found")
         if doc.get("status") not in [AgentStatus.REGISTERED.value, AgentStatus.MERGED.value, AgentStatus.IDLE.value]:
             raise ConflictError("Agent is not ready for issue planning")
+
+    async def plan_issues(self, upload_id: str) -> Dict[str, Any]:
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
 
         analysis = Analysis.model_validate(doc["analysis"])
         charter = CharterEvaluation.model_validate(doc["charter"])
@@ -134,6 +150,14 @@ class AgentUseCase:
             })
 
         return {"issues": created_issues}
+
+    async def ensure_can_implement_issue(self, upload_id: str, issue_id: str):
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
+        issues = await self.repo.get_issues(upload_id)
+        if not any(i["id"] == issue_id for i in issues):
+            raise NotFoundError(f"Issue {issue_id} not found")
 
     async def implement_issue(self, upload_id: str, issue_id: str) -> Dict[str, Any]:
         doc = await self.repo.get(upload_id)
@@ -166,6 +190,11 @@ class AgentUseCase:
         })
 
         return {"prUrl": url, "branch": branch}
+
+    async def ensure_can_review_pull(self, upload_id: str):
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
 
     async def review_pull(self, upload_id: str, pr_number: int) -> Dict[str, Any]:
         doc = await self.repo.get(upload_id)

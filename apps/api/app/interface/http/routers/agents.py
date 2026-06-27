@@ -15,99 +15,62 @@ class AnalyzeRequest(BaseModel):
 def get_agent_usecase(deps: Deps = Depends(get_deps)) -> AgentUseCase:
     return AgentUseCase(deps.agent_repo, deps.storage, deps.scm, deps.settings, deps)
 
-async def _analyze_background(upload_id: str, usecase: AgentUseCase):
+async def run_with_error_handling(resource_id: str, task_name: str, usecase: AgentUseCase, func_name: str, *args):
     try:
-        await usecase.analyze(upload_id)
+        func = getattr(usecase, func_name)
+        await func(*args)
     except Exception as e:
-        logger.error(f"Background analyze failed for {upload_id}: {e}", exc_info=True)
+        logger.error(f"Background '{task_name}' failed for {resource_id}: {e}", exc_info=True)
+        import asyncio
+        asyncio.create_task(usecase.mark_as_failed(resource_id, str(e)))
 
 @router.post("/agents:analyze", status_code=status.HTTP_202_ACCEPTED)
 async def analyze_agent(req: AnalyzeRequest, background_tasks: BackgroundTasks, usecase: AgentUseCase = Depends(get_agent_usecase)):
-    background_tasks.add_task(_analyze_background, req.uploadId, usecase)
+    background_tasks.add_task(run_with_error_handling, req.uploadId, "analyze", usecase, "analyze", req.uploadId)
     return {"message": "Analysis started in background", "uploadId": req.uploadId}
-
-async def _register_background(upload_id: str, usecase: AgentUseCase):
-    try:
-        await usecase.register(upload_id)
-    except Exception as e:
-        logger.error(f"Background register failed for {upload_id}: {e}", exc_info=True)
 
 @router.post("/agents/{upload_id}:register", status_code=status.HTTP_202_ACCEPTED)
 async def register_agent(upload_id: str, background_tasks: BackgroundTasks, usecase: AgentUseCase = Depends(get_agent_usecase)):
-    # Quick check for initial status
     try:
-        doc = await usecase.repo.get(upload_id)
-        if not doc:
-            raise NotFoundError(f"Agent {upload_id} not found")
-        if doc.get("status") != "PASSED":
-             raise ConflictError("Agent has not passed the Charter Gate")
+        await usecase.ensure_can_register(upload_id)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))
         
-    background_tasks.add_task(_register_background, upload_id, usecase)
+    background_tasks.add_task(run_with_error_handling, upload_id, "register", usecase, "register", upload_id)
     return {"message": "Registration started in background"}
-
-async def _plan_issues_background(upload_id: str, usecase: AgentUseCase):
-    try:
-        await usecase.plan_issues(upload_id)
-    except Exception as e:
-        logger.error(f"Background plan issues failed for {upload_id}: {e}", exc_info=True)
 
 @router.post("/agents/{upload_id}/issues:plan", status_code=status.HTTP_202_ACCEPTED)
 async def plan_issues(upload_id: str, background_tasks: BackgroundTasks, usecase: AgentUseCase = Depends(get_agent_usecase)):
     try:
-        doc = await usecase.repo.get(upload_id)
-        if not doc:
-            raise NotFoundError(f"Agent {upload_id} not found")
-        if doc.get("status") not in ["REGISTERED", "MERGED", "IDLE"]:
-             raise ConflictError("Agent is not ready for issue planning")
+        await usecase.ensure_can_plan_issues(upload_id)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))
         
-    background_tasks.add_task(_plan_issues_background, upload_id, usecase)
+    background_tasks.add_task(run_with_error_handling, upload_id, "plan_issues", usecase, "plan_issues", upload_id)
     return {"message": "Issue planning started in background"}
-
-async def _implement_issue_background(upload_id: str, issue_id: str, usecase: AgentUseCase):
-    try:
-        await usecase.implement_issue(upload_id, issue_id)
-    except Exception as e:
-        logger.error(f"Background implement failed for {upload_id}, issue {issue_id}: {e}", exc_info=True)
 
 @router.post("/agents/{upload_id}/issues/{issue_id}:implement", status_code=status.HTTP_202_ACCEPTED)
 async def implement_issue(upload_id: str, issue_id: str, background_tasks: BackgroundTasks, usecase: AgentUseCase = Depends(get_agent_usecase)):
     try:
-        doc = await usecase.repo.get(upload_id)
-        if not doc:
-            raise NotFoundError(f"Agent {upload_id} not found")
-        issues = await usecase.repo.get_issues(upload_id)
-        if not any(i["id"] == issue_id for i in issues):
-            raise NotFoundError(f"Issue {issue_id} not found")
+        await usecase.ensure_can_implement_issue(upload_id, issue_id)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
         
-    background_tasks.add_task(_implement_issue_background, upload_id, issue_id, usecase)
+    background_tasks.add_task(run_with_error_handling, upload_id, "implement_issue", usecase, "implement_issue", upload_id, issue_id)
     return {"message": "Implementation started in background"}
-
-async def _review_pull_background(upload_id: str, pr_number: int, usecase: AgentUseCase):
-    try:
-        await usecase.review_pull(upload_id, pr_number)
-    except Exception as e:
-        logger.error(f"Background review failed for {upload_id}, PR {pr_number}: {e}", exc_info=True)
 
 @router.post("/agents/{upload_id}/pulls/{pr_number}:review", status_code=status.HTTP_202_ACCEPTED)
 async def review_pull(upload_id: str, pr_number: int, background_tasks: BackgroundTasks, usecase: AgentUseCase = Depends(get_agent_usecase)):
     try:
-        doc = await usecase.repo.get(upload_id)
-        if not doc:
-            raise NotFoundError(f"Agent {upload_id} not found")
+        await usecase.ensure_can_review_pull(upload_id)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
         
-    background_tasks.add_task(_review_pull_background, upload_id, pr_number, usecase)
+    background_tasks.add_task(run_with_error_handling, upload_id, "review_pull", usecase, "review_pull", upload_id, pr_number)
     return {"message": "Review started in background"}
 
 @router.post("/agents/{upload_id}/pulls/{pr_number}:deploy-preview")

@@ -11,6 +11,7 @@ class AgentStatus(str, Enum):
     CHANGES_REQUESTED = "CHANGES_REQUESTED"
     MERGED = "MERGED"
     IDLE = "IDLE"
+    ERROR = "ERROR"
 
 class NotFoundError(Exception):
     pass
