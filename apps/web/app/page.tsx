@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import CharterChat from "../components/CharterChat";
 import IssueList from "../components/IssueList";
+import PRViewer from "../components/PRViewer";
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
@@ -154,51 +155,19 @@ export default function Home() {
             </div>
           )}
           
-          {result.status === 'PR_OPEN' && (
-            <div className="mt-4 border-t pt-4">
-              <p>Active PR: {result.prBranch}</p>
-              <button 
-                onClick={async () => {
-                  setUploading(true);
-                  try {
-                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/pulls/${result.prNumber}:review`, { method: 'POST' });
-                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/pulls/${result.prNumber}:deploy-preview`, { method: 'POST' });
-                    alert(`Reviewed & Deploy Preview triggered`);
-                    setResult({...result, status: 'PREVIEW_READY'});
-                  } catch (e) {
-                    console.error(e);
-                  } finally {
-                    setUploading(false);
-                  }
-                }}
-                disabled={uploading}
-                className="bg-indigo-600 text-white px-4 py-2 rounded"
-              >
-                Review & Deploy Preview
-              </button>
-            </div>
+          {['PR_OPEN', 'PREVIEW_READY'].includes(result.status) && (
+            <PRViewer 
+              uploadId={result.uploadId} 
+              prNumber={result.prNumber} 
+              prBranch={result.prBranch} 
+              onApproved={() => setResult({...result, status: 'MERGED'})}
+            />
           )}
 
-          {result.status === 'PREVIEW_READY' && (
-            <div className="mt-4">
-              <button 
-                onClick={async () => {
-                  setUploading(true);
-                  try {
-                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/pulls/${result.prNumber}:approve`, { method: 'POST' });
-                    alert(`Approved & Merged!`);
-                    setResult({...result, status: 'MERGED'});
-                  } catch (e) {
-                    console.error(e);
-                  } finally {
-                    setUploading(false);
-                  }
-                }}
-                disabled={uploading}
-                className="bg-green-600 text-white px-4 py-2 rounded"
-              >
-                Approve PR
-              </button>
+          {result.status === 'MERGED' && (
+            <div className="mt-4 p-4 bg-green-100 text-green-800 rounded-lg">
+              <h3 className="text-xl font-bold mb-2">実装完了 🎉</h3>
+              <p>PRがマージされ、Issue対応が完了しました。</p>
             </div>
           )}
         </div>

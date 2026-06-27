@@ -100,6 +100,17 @@ async def send_charter_message(upload_id: str, req: ChatMessageRequest, usecase:
         logger.error(f"Failed to send chat message for agent {upload_id}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
+@router.get("/agents/{upload_id}/pulls/{pr_number}/diff")
+async def get_pull_diff(upload_id: str, pr_number: int, usecase: AgentUseCase = Depends(get_agent_usecase)):
+    try:
+        diff_text = await usecase.get_pull_diff(upload_id, pr_number)
+        return {"diff": diff_text}
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to get diff for PR {pr_number} on agent {upload_id}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
 @router.post("/agents/{upload_id}/pulls/{pr_number}:deploy-preview")
 async def deploy_preview(upload_id: str, pr_number: int, usecase: AgentUseCase = Depends(get_agent_usecase)):
     try:

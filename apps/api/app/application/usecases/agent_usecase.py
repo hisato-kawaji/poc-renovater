@@ -238,6 +238,13 @@ class AgentUseCase:
 
         return {"state": review_result.state, "comments": review_result.comments}
 
+    async def get_pull_diff(self, upload_id: str, pr_number: int) -> str:
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
+        repo_name = doc["repo"]["fullName"].split("/")[-1]
+        return self.scm.get_pr_diff(repo_name, pr_number)
+
     async def get_charter_messages(self, upload_id: str) -> List[Dict[str, Any]]:
         doc = await self.repo.get(upload_id)
         if not doc:
