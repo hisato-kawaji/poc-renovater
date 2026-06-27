@@ -232,6 +232,47 @@ class AgentUseCase:
 
         return {"state": review_result.state, "comments": review_result.comments}
 
+    async def get_charter_messages(self, upload_id: str) -> List[Dict[str, Any]]:
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
+        return await self.repo.get_messages(upload_id)
+
+    async def send_charter_message(self, upload_id: str, message: str) -> Dict[str, Any]:
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
+        
+        import datetime
+        now = datetime.datetime.utcnow().isoformat() + "Z"
+        
+        # Save user message
+        user_msg = {
+            "role": "user",
+            "content": message,
+            "timestamp": now
+        }
+        await self.repo.save_message(upload_id, user_msg)
+        
+        # Get history
+        messages = await self.repo.get_messages(upload_id)
+        
+        analysis_data = doc.get("analysis", {})
+        charter_data = doc.get("charter", {})
+        
+        client = CharterAgentClient(self.deps)
+        ai_response_text = await client.chat(analysis_data, charter_data, messages)
+        
+        now = datetime.datetime.utcnow().isoformat() + "Z"
+        ai_msg = {
+            "role": "assistant",
+            "content": ai_response_text,
+            "timestamp": now
+        }
+        await self.repo.save_message(upload_id, ai_msg)
+        
+        return ai_msg
+
     async def deploy_preview(self, upload_id: str, pr_number: int) -> Dict[str, Any]:
         service_name = f"poc-{upload_id[:8]}-pr{pr_number}"
         url = f"https://{service_name}-preview.run.app"

@@ -41,3 +41,11 @@ class AgentRepository(ABC):
     @abstractmethod
     async def save_deployment(self, upload_id: str, deployment_data: Dict[str, Any]) -> None:
         pass
+
+    @abstractmethod
+    async def get_messages(self, upload_id: str) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    async def save_message(self, upload_id: str, message_data: Dict[str, Any]) -> None:
+        pass

@@ -55,3 +55,14 @@ class FirestoreAgentRepository(AgentRepository):
     async def save_deployment(self, upload_id: str, deployment_data: Dict[str, Any]) -> None:
         doc_ref = self.collection.document(upload_id).collection("deployments")
         await asyncio.to_thread(doc_ref.add, deployment_data)
+
+    async def get_messages(self, upload_id: str) -> List[Dict[str, Any]]:
+        doc_ref = self.collection.document(upload_id)
+        # Order by timestamp to get conversation history in order
+        query = doc_ref.collection("messages").order_by("timestamp")
+        messages = await asyncio.to_thread(lambda: list(query.get()))
+        return [{"id": m.id, **m.to_dict()} for m in messages]
+
+    async def save_message(self, upload_id: str, message_data: Dict[str, Any]) -> None:
+        doc_ref = self.collection.document(upload_id).collection("messages")
+        await asyncio.to_thread(doc_ref.add, message_data)

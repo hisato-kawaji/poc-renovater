@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 
+import CharterChat from "../components/CharterChat";
+
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -41,16 +43,24 @@ export default function Home() {
       <h1 className="text-3xl font-bold mb-4">PoC Foundry - Upload</h1>
       
       <div className="mb-8 p-4 border rounded-lg bg-gray-50">
+        <label className="block mb-2 font-medium text-gray-700">対象のPoC（.zipファイル）を選択してください</label>
+        <p className="text-sm text-gray-500 mb-4">※フォルダをアップロードする場合は、事前に右クリック等でzip圧縮してください。</p>
         <input 
           type="file" 
           accept=".zip" 
           onChange={(e) => setFile(e.target.files?.[0] || null)} 
-          className="mb-4 block"
+          className="mb-6 block w-full text-sm text-gray-500
+            file:mr-4 file:py-2 file:px-4
+            file:rounded-full file:border-0
+            file:text-sm file:font-semibold
+            file:bg-blue-50 file:text-blue-700
+            hover:file:bg-blue-100
+            border border-gray-300 rounded-lg p-3 bg-white cursor-pointer"
         />
         <button 
           onClick={handleUpload} 
           disabled={!file || uploading}
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+          className="bg-blue-600 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
           {uploading ? "Analyzing..." : "Upload & Analyze"}
         </button>
@@ -64,16 +74,22 @@ export default function Home() {
             Status: <span className={result.status === "PASSED" ? "text-green-400" : "text-red-400"}>{result.status}</span>
           </div>
 
-          <div>
-            <h3 className="text-xl font-medium border-b pb-2 mb-2">Charter Evaluation</h3>
-            <pre className="bg-gray-100 p-4 rounded overflow-auto text-sm">
-              {JSON.stringify(result.charter, null, 2)}
-            </pre>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-xl font-medium border-b pb-2 mb-2">Charter Evaluation</h3>
+              <pre className="bg-gray-100 p-4 rounded overflow-auto text-sm max-h-96">
+                {JSON.stringify(result.charter, null, 2)}
+              </pre>
+            </div>
+            <div>
+              <h3 className="text-xl font-medium border-b pb-2 mb-2">Interactive Chat</h3>
+              <CharterChat uploadId={result.uploadId} />
+            </div>
           </div>
 
           <div>
             <h3 className="text-xl font-medium border-b pb-2 mb-2">Technical Analysis</h3>
-            <pre className="bg-gray-100 p-4 rounded overflow-auto text-sm">
+            <pre className="bg-gray-100 p-4 rounded overflow-auto text-sm max-h-96">
               {JSON.stringify(result.analysis, null, 2)}
             </pre>
           </div>
@@ -135,7 +151,8 @@ export default function Home() {
                     const res = await fetch(`http://localhost:8000/api/agents/${result.uploadId}/issues/1:implement`, { method: 'POST' });
                     const json = await res.json();
                     alert(`PR created: ${json.prUrl}`);
-                    setResult({...result, status: 'PR_OPEN'});
+                    const prNumber = json.prUrl.split('/').pop();
+                    setResult({...result, status: 'PR_OPEN', prNumber, prBranch: json.branch});
                   } catch (e) {
                     console.error(e);
                   } finally {
@@ -152,13 +169,13 @@ export default function Home() {
           
           {result.status === 'PR_OPEN' && (
             <div className="mt-4">
-              <p>Note: Assuming PR number 1 for MVP test</p>
+              <p>PR Created! (Branch: {result.prBranch})</p>
               <button 
                 onClick={async () => {
                   setUploading(true);
                   try {
-                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/pulls/1:review`, { method: 'POST' });
-                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/pulls/1:deploy-preview`, { method: 'POST' });
+                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/pulls/${result.prNumber}:review`, { method: 'POST' });
+                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/pulls/${result.prNumber}:deploy-preview`, { method: 'POST' });
                     alert(`Reviewed & Deploy Preview triggered`);
                     setResult({...result, status: 'PREVIEW_READY'});
                   } catch (e) {
@@ -181,7 +198,7 @@ export default function Home() {
                 onClick={async () => {
                   setUploading(true);
                   try {
-                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/pulls/1:approve`, { method: 'POST' });
+                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}/pulls/${result.prNumber}:approve`, { method: 'POST' });
                     alert(`Approved & Merged!`);
                     setResult({...result, status: 'MERGED'});
                   } catch (e) {
