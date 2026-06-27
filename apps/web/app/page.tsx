@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import CharterChat from "../components/CharterChat";
 import IssueList from "../components/IssueList";
@@ -9,6 +9,32 @@ export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
+
+  useEffect(() => {
+    if (!result?.uploadId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`http://localhost:8000/api/agents/${result.uploadId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setResult((prev: any) => {
+            if (!prev) return data;
+            const next = { ...prev, ...data };
+            if (JSON.stringify(prev) !== JSON.stringify(next)) {
+              if (['PASSED', 'REJECTED', 'ERROR'].includes(data.status)) {
+                setUploading(false);
+              }
+              return next;
+            }
+            return prev;
+          });
+        }
+      } catch (e) {
+        console.error("Polling error", e);
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [result?.uploadId]);
 
   const handleUpload = async () => {
     if (!file) return;
@@ -23,36 +49,15 @@ export default function Home() {
         body: formData,
       });
       const { uploadId } = await upRes.json();
+      setResult({ uploadId, status: "ANALYZING" });
 
       // Analyze API
-      const anRes = await fetch("http://localhost:8000/api/agents:analyze", {
+      await fetch("http://localhost:8000/api/agents:analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ uploadId }),
       });
-      
-      // Poll for status
-      const pollResult = async () => {
-        try {
-          const res = await fetch(`http://localhost:8000/api/agents/${uploadId}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.status) {
-              setResult({ uploadId, ...data });
-              if (['PASSED', 'REJECTED', 'ERROR'].includes(data.status)) {
-                setUploading(false);
-                return;
-              }
-            }
-          }
-        } catch (e) {
-          console.error("Polling error", e);
-        }
-        setTimeout(pollResult, 3000);
-      };
-      
-      pollResult();
-
+      // Polling is handled by useEffect
     } catch (e) {
       console.error(e);
       alert("Error occurred");
@@ -122,14 +127,9 @@ export default function Home() {
                 onClick={async () => {
                   setUploading(true);
                   try {
-                    const res = await fetch(`http://localhost:8000/api/agents/${result.uploadId}:register`, { method: 'POST' });
-                    const json = await res.json();
-                    alert(`Registered! Repo URL: ${json.repoUrl}`);
-                    setResult({...result, status: 'REGISTERED'});
+                    await fetch(`http://localhost:8000/api/agents/${result.uploadId}:register`, { method: 'POST' });
                   } catch (e) {
                     console.error(e);
-                  } finally {
-                    setUploading(false);
                   }
                 }}
                 disabled={uploading}
@@ -147,12 +147,8 @@ export default function Home() {
                   setUploading(true);
                   try {
                     await fetch(`http://localhost:8000/api/agents/${result.uploadId}/issues:plan`, { method: 'POST' });
-                    alert(`Issues planning started in background!`);
-                    setResult({...result, status: 'PLANNING'});
                   } catch (e) {
                     console.error(e);
-                  } finally {
-                    setUploading(false);
                   }
                 }}
                 disabled={uploading}
