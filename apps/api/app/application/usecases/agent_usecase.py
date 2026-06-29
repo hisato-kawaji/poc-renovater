@@ -3,7 +3,7 @@ import io
 import sys
 import os
 import logging
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, List
 from app.deps import Deps
 from app.application.agents.ingest import IngestAgentClient
 from app.application.agents.charter import CharterAgentClient
@@ -64,12 +64,15 @@ class AgentUseCase:
         return doc
 
     async def analyze(self, upload_id: str) -> Dict[str, Any]:
+        logger.info(f"[{upload_id}] Starting Analysis Phase")
         zip_bytes = self.storage.download_zip(upload_id)
         source_tree_str, file_contents = self._extract_zip(zip_bytes)
 
+        logger.info(f"[{upload_id}] Invoking IngestAgentClient")
         client = IngestAgentClient(self.deps)
         analysis = await client.analyze(source_tree_str, file_contents)
 
+        logger.info(f"[{upload_id}] Invoking CharterAgentClient")
         charter_client = CharterAgentClient(self.deps)
         charter_eval = await charter_client.evaluate(analysis, source_tree_str, file_contents)
 
@@ -131,6 +134,7 @@ class AgentUseCase:
             raise ConflictError("Agent is not ready for issue planning")
 
     async def plan_issues(self, upload_id: str) -> Dict[str, Any]:
+        logger.info(f"[{upload_id}] Starting issue planning phase")
         doc = await self.repo.get(upload_id)
         if not doc:
             raise NotFoundError(f"Agent {upload_id} not found")
@@ -139,8 +143,11 @@ class AgentUseCase:
         charter = CharterEvaluation.model_validate(doc["charter"])
         repo_name = doc["repo"]["fullName"].split("/")[-1]
 
+        logger.info(f"[{upload_id}] Invoking IssuePlannerClient to plan missing features")
         client = IssuePlannerClient(self.deps)
         plan = await client.plan(analysis, charter)
+        
+        logger.info(f"[{upload_id}] Executing plan: Creating issues on GitHub repo {repo_name}")
         created_issues = await client.execute(repo_name, plan)
 
         await self.repo.update(upload_id, {"status": AgentStatus.PLANNING.value})
@@ -172,6 +179,7 @@ class AgentUseCase:
         return await self.repo.get_issues(upload_id)
 
     async def implement_issue(self, upload_id: str, issue_id: str) -> Dict[str, Any]:
+        logger.info(f"[{upload_id}] Starting implementation for Issue #{issue_id}")
         doc = await self.repo.get(upload_id)
         if not doc:
             raise NotFoundError(f"Agent {upload_id} not found")
@@ -184,11 +192,26 @@ class AgentUseCase:
         if not issue_doc:
             raise NotFoundError(f"Issue {issue_id} not found")
 
+        logger.info(f"[{upload_id}] Invoking CodingAgentClient for Issue #{issue_id}")
         client = CodingAgentClient(self.deps)
+        
+        # Set to in_progress immediately so the UI reflects the change
+        await self.repo.update_issue(upload_id, issue_id, {
+            "status": "in_progress"
+        })
+        
         code_change = await client.implement(issue_doc, charter, repo_name)
+        
+        logger.info(f"[{upload_id}] Executing code change: committing to branch and creating PR on GitHub")
         url, branch = await client.execute(repo_name, code_change)
 
-        await self.repo.update(upload_id, {"status": AgentStatus.PR_OPEN.value})
+        pr_number = url.split("/")[-1]
+        logger.info(f"[{upload_id}] Successfully created PR #{pr_number}: {url}")
+        await self.repo.update(upload_id, {
+            "status": AgentStatus.PR_OPEN.value,
+            "prNumber": pr_number,
+            "prBranch": branch
+        })
         await self.repo.update_issue(upload_id, issue_id, {
             "status": "in_progress",
             "prUrl": url
@@ -293,8 +316,26 @@ class AgentUseCase:
         return ai_msg
 
     async def deploy_preview(self, upload_id: str, pr_number: int) -> Dict[str, Any]:
-        service_name = f"poc-{upload_id[:8]}-pr{pr_number}"
-        url = f"https://{service_name}-preview.run.app"
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
+
+        repo_url = doc["repo"]["url"]
+        
+        # Get branch from pulls collection
+        pulls = await self.repo.get_pulls(upload_id)
+        pull_doc = next((p for p in pulls if str(pr_number) in p.get("url", "")), None)
+        if not pull_doc:
+            raise NotFoundError(f"Pull Request {pr_number} not found")
+        
+        branch = pull_doc.get("branch", "main")
+
+        service_name = f"poc-{upload_id[:8]}-pr{pr_number}".lower()
+        
+        from app.application.agents.deploy import DeployAgentClient
+        client = DeployAgentClient(self.deps)
+        url = await client.deploy(repo_url, branch, service_name)
+        
         await self.repo.save_deployment(upload_id, {
             "prNumber": pr_number,
             "service": service_name,

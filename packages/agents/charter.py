@@ -10,7 +10,7 @@ def build_charter_agent() -> LlmAgent:
     You are an expert Google Cloud Solutions Architect evaluating an application against the 'Cloud Run Charter' rules.
     Evaluate the provided Analysis context and the Source Code.
     Score out of 100.
-    1. Must be stateless or state must be in an external DB (Firestore).
+    1. Must be stateless or state must be in an external DB (Firestore). Note: Using `useState` in React/Next.js frontend code (e.g., page.tsx) for client-side state is completely acceptable and DOES NOT violate the stateless backend principle, as long as persistent data is saved to Firestore.
     2. Must have a Dockerfile or be easily containerizable.
     3. Configuration must be via environment variables.
     4. Must not store hardcoded secrets.

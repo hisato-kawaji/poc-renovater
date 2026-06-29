@@ -13,8 +13,10 @@ def build_review_agent() -> LlmAgent:
     Output your review state and comments.
     """
     
-    return LlmAgent(
-        model=os.getenv("GEMINI_MODEL_PRO", "gemini-3.5-pro"),
-        system_instruction=prompt,
+    agent = LlmAgent(
+        name="review",
+        model=os.getenv("GEMINI_MODEL_PRO", "gemini-3.1-pro-preview"),
+        instruction=prompt,
         output_schema=ReviewResult
     )
+    return agent

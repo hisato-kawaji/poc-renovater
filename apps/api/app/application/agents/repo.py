@@ -27,15 +27,21 @@ class RepoAgentClient:
         
         files_to_commit = file_contents.copy()
         files_to_commit["README.md"] = plan.readmeContent
-        files_to_commit[".github/workflows/ci.yml"] = """name: CI
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: echo "Run tests"
-"""
-        self.deps.scm.commit_files(plan.repositoryName, files_to_commit, "Initial commit from PoC Foundry")
+        
+        template_dir = os.path.join(os.path.dirname(__file__), "../../../../../../templates")
+        
+        for root, _, files in os.walk(template_dir):
+            for file in files:
+                if file.endswith(".tmpl") and file == "README.md.tmpl":
+                    continue # handled by agent plan
+                file_path = os.path.join(root, file)
+                rel_path = os.path.relpath(file_path, template_dir)
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                if rel_path.endswith(".tmpl"):
+                    rel_path = rel_path[:-5]
+                files_to_commit[rel_path] = content
+
+        self.deps.scm.commit_files(plan.repositoryName, files_to_commit, "Initial commit from PoC Foundry with templates")
         
         return url, plan.repositoryName

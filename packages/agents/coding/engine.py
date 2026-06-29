@@ -13,8 +13,10 @@ def build_coding_agent() -> LlmAgent:
     Keep the changes minimal and focused exactly on solving the Issue.
     """
     
-    return LlmAgent(
-        model=os.getenv("GEMINI_MODEL_PRO", "gemini-3.5-pro"),
-        system_instruction=prompt,
+    agent = LlmAgent(
+        name="coding",
+        model=os.getenv("GEMINI_MODEL_PRO", "gemini-3.1-pro-preview"),
+        instruction=prompt,
         output_schema=CodeChange
     )
+    return agent

@@ -9,6 +9,7 @@ agents = [
     ("packages.agents.issue_planner:build_issue_planner_agent", "issue-planner-agent"),
     ("packages.agents.coding.engine:build_coding_agent", "coding-agent"),
     ("packages.agents.review:build_review_agent", "review-agent"),
+    ("packages.agents.self_improve:build_self_improve_agent", "self-improve-agent"),
 ]
 
 def main():
