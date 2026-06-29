@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 from typing import Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from app.deps import get_deps, Deps
 from app.application.usecases.agent_usecase import AgentUseCase
@@ -31,7 +31,6 @@ async def run_usecase_task(task_name: str, usecase: AgentUseCase, func_name: str
 @router.post("/events/pubsub")
 async def handle_pubsub_event(
     req: PubSubPushRequest, 
-    background_tasks: BackgroundTasks, 
     usecase: AgentUseCase = Depends(get_agent_usecase)
 ):
     """
@@ -57,20 +56,20 @@ async def handle_pubsub_event(
 
     logger.info(f"Handling Pub/Sub event: {event_type} for upload_id {upload_id}")
 
-    # Dispatch to background task to acknowledge Pub/Sub quickly
+    # Await usecase synchronously to prevent Cloud Run CPU throttling
     if event_type == "analyze":
-        background_tasks.add_task(run_usecase_task, event_type, usecase, "analyze", upload_id)
+        await run_usecase_task(event_type, usecase, "analyze", upload_id)
     elif event_type == "register":
-        background_tasks.add_task(run_usecase_task, event_type, usecase, "register", upload_id)
+        await run_usecase_task(event_type, usecase, "register", upload_id)
     elif event_type == "plan_issues":
-        background_tasks.add_task(run_usecase_task, event_type, usecase, "plan_issues", upload_id)
+        await run_usecase_task(event_type, usecase, "plan_issues", upload_id)
     elif event_type == "implement_issue":
         issue_id = payload.get("issue_id")
-        background_tasks.add_task(run_usecase_task, event_type, usecase, "implement_issue", upload_id, issue_id)
+        await run_usecase_task(event_type, usecase, "implement_issue", upload_id, issue_id)
     elif event_type == "review_pull":
         pr_number_str = payload.get("pr_number")
         if pr_number_str and pr_number_str.isdigit():
-            background_tasks.add_task(run_usecase_task, event_type, usecase, "review_pull", upload_id, int(pr_number_str))
+            await run_usecase_task(event_type, usecase, "review_pull", upload_id, int(pr_number_str))
     else:
         logger.warning(f"Unknown event_type: {event_type}")
 
