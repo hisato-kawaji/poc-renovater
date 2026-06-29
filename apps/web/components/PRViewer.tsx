@@ -29,8 +29,15 @@ export default function PRViewer({ uploadId, prNumber, prBranch, onApproved }: {
     setLoadingAction(action);
     try {
       if (action === 'deploy') {
-        await fetch(`http://localhost:8000/api/agents/${uploadId}/pulls/${prNumber}:deploy-preview`, { method: "POST" });
-        alert("Deploy Preview triggered successfully!");
+        const res = await fetch(`http://localhost:8000/api/agents/${uploadId}/pulls/${prNumber}:deploy-preview`, { method: "POST" });
+        if (res.ok) {
+          const data = await res.json();
+          alert(`Deploy Preview triggered successfully!\nURL: ${data.url}`);
+          window.open(data.url, '_blank');
+        } else {
+          const data = await res.json();
+          alert(`Failed to deploy: ${data.detail || 'Unknown error'}`);
+        }
       } else if (action === 'approve') {
         const res = await fetch(`http://localhost:8000/api/agents/${uploadId}/pulls/${prNumber}:approve`, { method: "POST" });
         if (res.ok) {
@@ -74,7 +81,7 @@ export default function PRViewer({ uploadId, prNumber, prBranch, onApproved }: {
         {loading ? (
           <div className="text-gray-500">Loading diff...</div>
         ) : diff ? (
-          <pre className="whitespace-pre-wrap">{diff}</pre>
+          <pre className="whitespace-pre-wrap text-gray-900">{diff}</pre>
         ) : (
           <div className="text-gray-500">No diff available.</div>
         )}

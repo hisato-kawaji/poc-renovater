@@ -13,8 +13,9 @@ def build_repo_agent() -> LlmAgent:
     """
     
     agent = LlmAgent(
+        name="repo",
         model=os.getenv("GEMINI_MODEL_FLASH", "gemini-3.5-flash"),
-        system_instruction=prompt,
+        instruction=prompt,
         output_schema=RepoPlan
     )
     return agent

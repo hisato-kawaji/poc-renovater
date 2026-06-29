@@ -124,7 +124,7 @@ async def deploy_preview(upload_id: str, pr_number: int, usecase: AgentUseCase =
         return await usecase.deploy_preview(upload_id, pr_number)
     except Exception as e:
         logger.error(f"Failed to deploy preview for PR {pr_number} on agent {upload_id}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/agents/{upload_id}/pulls/{pr_number}:approve")
 async def approve_pull(upload_id: str, pr_number: int, usecase: AgentUseCase = Depends(get_agent_usecase)):
