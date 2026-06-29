@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     max_pr_diff_lines: int = 400
     preview_ttl_hours: int = 48
     preview_max_concurrent: int = 2
+    pubsub_topic_tasks: str = "poc-foundry-tasks"
 
 def get_settings() -> Settings:
     return Settings()
