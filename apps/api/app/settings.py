@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     charter_score_threshold: int = Field(80, env="CHARTER_SCORE_THRESHOLD")
     max_pr_diff_lines: int = Field(400, env="MAX_PR_DIFF_LINES")
     slack_webhook_url: Optional[str] = Field(None, env="SLACK_WEBHOOK_URL")
+    database_url: Optional[str] = Field(None, env="DATABASE_URL")
     preview_ttl_hours: int = 48
     preview_max_concurrent: int = 2
     pubsub_topic_tasks: str = "poc-foundry-tasks"
