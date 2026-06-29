@@ -4,9 +4,9 @@ from google.cloud import firestore
 from app.domain.repositories.agent_repository import AgentRepository
 
 class FirestoreAgentRepository(AgentRepository):
-    def __init__(self, project_id: str):
+    def __init__(self, project_id: str, tenant_id: str):
         self.db = firestore.Client(project=project_id)
-        self.collection = self.db.collection("agents")
+        self.collection = self.db.collection("tenants").document(tenant_id).collection("agents")
 
     async def get(self, upload_id: str) -> Optional[Dict[str, Any]]:
         doc_ref = self.collection.document(upload_id)

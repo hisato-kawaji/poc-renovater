@@ -4,9 +4,9 @@ import logging
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from app.deps import get_deps, Deps
+from app.deps import Deps
+from app.settings import get_settings
 from app.application.usecases.agent_usecase import AgentUseCase
-from app.interface.http.routers.agents import get_agent_usecase
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -30,8 +30,7 @@ async def run_usecase_task(task_name: str, usecase: AgentUseCase, func_name: str
 
 @router.post("/events/pubsub")
 async def handle_pubsub_event(
-    req: PubSubPushRequest, 
-    usecase: AgentUseCase = Depends(get_agent_usecase)
+    req: PubSubPushRequest
 ):
     """
     Push endpoint for Google Cloud Pub/Sub.
@@ -50,11 +49,16 @@ async def handle_pubsub_event(
         return {"status": "ignored", "reason": "no event_type"}
         
     upload_id = payload.get("upload_id")
-    if not upload_id:
-        logger.warning(f"Received {event_type} event without upload_id")
-        return {"status": "ignored", "reason": "no upload_id"}
+    tenant_id = payload.get("tenant_id")
+    if not upload_id or not tenant_id:
+        logger.warning(f"Received {event_type} event without upload_id or tenant_id")
+        return {"status": "ignored", "reason": "missing upload_id or tenant_id"}
 
-    logger.info(f"Handling Pub/Sub event: {event_type} for upload_id {upload_id}")
+    logger.info(f"Handling Pub/Sub event: {event_type} for upload_id {upload_id}, tenant_id {tenant_id}")
+    
+    settings = get_settings()
+    deps = Deps(settings, tenant_id)
+    usecase = AgentUseCase(deps.agent_repo, deps.storage, deps.scm, deps.settings, deps)
 
     # Await usecase synchronously to prevent Cloud Run CPU throttling
     if event_type == "analyze":

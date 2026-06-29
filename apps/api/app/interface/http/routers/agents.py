@@ -17,6 +17,7 @@ def get_agent_usecase(deps: Deps = Depends(get_deps)) -> AgentUseCase:
 
 async def publish_event(deps: Deps, event_type: str, payload: Dict[str, str]):
     topic = deps.settings.pubsub_topic_tasks
+    payload["tenant_id"] = deps.tenant_id
     try:
         await deps.event_publisher.publish(topic, event_type, payload)
     except Exception as e:
