@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from app.deps import Deps
 from app.settings import get_settings
 from app.application.usecases.agent_usecase import AgentUseCase
+from app.adapters.slack import send_slack_notification
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -21,11 +22,23 @@ class PubSubPushRequest(BaseModel):
     subscription: str
 
 async def run_usecase_task(task_name: str, usecase: AgentUseCase, func_name: str, *args):
+    settings = get_settings()
+    upload_id = args[0] if args else "unknown"
     try:
         func = getattr(usecase, func_name)
         await func(*args)
+        if settings.slack_webhook_url:
+            await send_slack_notification(
+                settings.slack_webhook_url, 
+                f"✅ Task `{task_name}` completed for Agent `{upload_id}`"
+            )
     except Exception as e:
         logger.error(f"Event handler '{task_name}' failed: {e}", exc_info=True)
+        if settings.slack_webhook_url:
+            await send_slack_notification(
+                settings.slack_webhook_url, 
+                f"❌ Task `{task_name}` failed for Agent `{upload_id}`\nError: {e}"
+            )
         # Note: robust error handling / retry should go here
 
 @router.post("/events/pubsub")

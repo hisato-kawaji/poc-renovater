@@ -24,6 +24,10 @@ async def publish_event(deps: Deps, event_type: str, payload: Dict[str, str]):
         logger.error(f"Failed to publish {event_type} event: {e}")
         raise HTTPException(status_code=500, detail="Failed to publish event")
 
+@router.get("/agents")
+async def list_agents(usecase: AgentUseCase = Depends(get_agent_usecase)):
+    return await usecase.list_agents()
+
 @router.post("/agents:analyze", status_code=status.HTTP_202_ACCEPTED)
 async def analyze_agent(req: AnalyzeRequest, deps: Deps = Depends(get_deps), usecase: AgentUseCase = Depends(get_agent_usecase)):
     await publish_event(deps, "analyze", {"upload_id": req.uploadId})

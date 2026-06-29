@@ -7,6 +7,10 @@ class AgentRepository(ABC):
         pass
 
     @abstractmethod
+    async def list(self) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
     async def save(self, upload_id: str, data: Dict[str, Any]) -> None:
         pass
 

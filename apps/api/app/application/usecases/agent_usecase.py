@@ -57,6 +57,9 @@ class AgentUseCase:
         except Exception as e:
             logger.error(f"Failed to mark agent {upload_id} as failed: {e}", exc_info=True)
 
+    async def list_agents(self) -> List[Dict[str, Any]]:
+        return await self.repo.list()
+
     async def get_agent(self, upload_id: str) -> Dict[str, Any]:
         doc = await self.repo.get(upload_id)
         if not doc:

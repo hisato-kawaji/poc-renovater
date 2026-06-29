@@ -1,3 +1,5 @@
+from typing import Optional
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -16,8 +18,9 @@ class Settings(BaseSettings):
     github_app_id: int = 0
     github_app_installation_id: int = 0
     github_app_private_key: str = ""
-    charter_score_threshold: int = 80
-    max_pr_diff_lines: int = 400
+    charter_score_threshold: int = Field(80, env="CHARTER_SCORE_THRESHOLD")
+    max_pr_diff_lines: int = Field(400, env="MAX_PR_DIFF_LINES")
+    slack_webhook_url: Optional[str] = Field(None, env="SLACK_WEBHOOK_URL")
     preview_ttl_hours: int = 48
     preview_max_concurrent: int = 2
     pubsub_topic_tasks: str = "poc-foundry-tasks"

@@ -15,6 +15,10 @@ class FirestoreAgentRepository(AgentRepository):
             return None
         return doc.to_dict()
 
+    async def list(self) -> List[Dict[str, Any]]:
+        agents = await asyncio.to_thread(lambda: list(self.collection.get()))
+        return [doc.to_dict() for doc in agents]
+
     async def save(self, upload_id: str, data: Dict[str, Any]) -> None:
         doc_ref = self.collection.document(upload_id)
         await asyncio.to_thread(doc_ref.set, data)
