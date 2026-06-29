@@ -5,7 +5,7 @@
 - 対象読者: 開発者本人 + Claude Code（実装エージェント）
 - v0.2 の変更: §16 の主要な未確定事項を確定（言語=Python、Coding エンジン、Agent 実行場所、PoC 隔離、アップロード方式、モデル/リージョン、GitHub org）。詳細は §1.4。
 - v0.3 の変更: preview 同時数上限=2、Gemini リージョン方針（東京→アジア→global の優先順）、GitHub App を org owner 権限で作成、を確定（§1.4 / §4.1 / §10.1 / §14.3 / §15 / §16）。
-- 補助ドキュメント: コードレベルの実装規約は [`docs/app-architecture.md`](app-architecture.md)、技術スタック検証フェーズは [`docs/tech-stack-validation.md`](tech-stack-validation.md)、領域別の設計ポリシーは [`docs/policy/`](policy/)（backend-architecture / api-schema / frontend / a2a-protocol / sandbox / infra / templates）。
+- 補助ドキュメント: コードレベルの実装規約は [`docs/app-architecture.md`](app-architecture.md)、技術スタック検証フェーズは [`docs/tech-stack-validation.md`](tech-stack-validation.md)、領域別の設計ポリシーは [`docs/policy/`](policy/)（backend-architecture / api-schema / frontend / ux-design / a2a-protocol / sandbox / infra / templates）。
 
 > このドキュメントは「Claude Code にフェーズ単位で自走実装させる」ことを目的に、What（何を作るか）と各コンポーネント間の Contract（契約）を確定させるための叩き台です。
 > ADK / Vertex AI / Cloud Run などフレームワーク固有の最新 API は変化が速いため、本書では**設計レベルの仕様**を確定し、SDK の正確な呼び出しは実装時に公式ドキュメント（後述の Context7 MCP など）で確認する方針とします。

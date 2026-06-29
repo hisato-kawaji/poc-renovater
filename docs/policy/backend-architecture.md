@@ -426,7 +426,24 @@ class CharterAgentService:
 
 ---
 
-## 6. テスト戦略との接続
+## 6. アーキテクチャの進化（Event-Driven & Multi-Tenancy）
+
+MVP後の進化として、以下のアーキテクチャ拡張を導入している（Phase 1/2 の成果）。
+
+### 6.1 イベント駆動アーキテクチャ (Pub/Sub)
+- **非同期状態遷移**: Webhook やユーザーアクションによる状態遷移を直接処理するのではなく、Pub/Sub にイベント（例: `start_analysis`, `start_planning`）をパブリッシュする。
+- **Cloud Run Push Subscriptions**: FastAPI 内の `/api/events/pubsub` が Pub/Sub からの Push リクエストを受け取る。
+- **実行モデル**: Cloud Run の CPU Throttling を回避するため、FastAPI の `BackgroundTasks` は使用せず、Push ハンドラ内で同期的に `await AgentUseCase.execute()` を実行する。リトライ制御やスケーリングは Pub/Sub + Cloud Run に委譲する。
+
+### 6.2 マルチテナントと隔離
+- **テナントID（tenant_id）**: 全てのリクエストは `X-Tenant-ID` ヘッダを必須とし、Deps 経由で各 Port/Adapter に注入される。
+- **Firestore 隔離**: `tenants/{tenant_id}/agents/{upload_id}` をプレフィックスとして分離。
+- **GCS 隔離**: `gs://bucket_name/tenants/{tenant_id}/agents/...`
+- **ランタイム隔離**: Cloud Run プレビュー等のデプロイ時は `poc-{upload_id[:8]}-...` の命名規則で隔離しつつ、将来的にはテナントごとに専用の Service Account を適用できる構造を維持している。
+
+---
+
+## 7. テスト戦略との接続
 
 | 層 | テスト | 偽物 |
 |---|---|---|
@@ -440,7 +457,7 @@ class CharterAgentService:
 
 ---
 
-## 7. 移行コスト
+## 8. 移行コスト
 
 現在の `apps/api/` は中身が `.gitkeep` のみ。移行ではなく **最初からこの構造で実装する**。本書を Phase 0 終盤 / Phase 1 着手時に skill `adk-agent-pattern` や `phase-start` から参照可能にする。
 
@@ -448,7 +465,7 @@ class CharterAgentService:
 
 ---
 
-## 8. 採用しないことを明示
+## 9. 採用しないことを明示
 
 | 案 | 不採用の理由 |
 |---|---|
@@ -460,7 +477,7 @@ class CharterAgentService:
 
 ---
 
-## 9. Phase S spike 結果との対応
+## 10. Phase S spike 結果との対応
 
 | 項目 | 状態 | spike / source |
 |---|---|---|
@@ -475,7 +492,7 @@ class CharterAgentService:
 
 ---
 
-## 10. 参考: 各案を不採用にした余白
+## 11. 参考: 各案を不採用にした余白
 
 - **Clean Architecture**: 同じ思想だが用語（Use Case / Entity / Interface Adapters / Frameworks & Drivers）が重く、Web 開発者にとって Hexagonal の Port/Adapter のほうが直感的。本書では Clean の **依存逆転原則** だけ採用。
 - **Vertical Slice**: 機能数が増えた段階で再評価する価値あり。MVP では Issue / PR / Charter / Deploy の関心が orchestrator にまたがるため slice にしづらい。
@@ -483,7 +500,7 @@ class CharterAgentService:
 
 ---
 
-## 11. 更新ルール
+## 12. 更新ルール
 
 - 本書のアーキテクチャ変更は **`docs/app-architecture.md` の対応節を同時に更新**
 - `domain/` のシグネチャ変更は最も慎重に（テストでロックする）
