@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.settings import get_settings
-from app.interface.http.routers import uploads, agents, webhooks
+from app.interface.http.routers import uploads, agents, webhooks, events
 
 # Configure google-genai SDK to use Vertex AI
 settings = get_settings()
@@ -35,6 +35,7 @@ app.add_middleware(
 app.include_router(uploads.router, prefix="/api")
 app.include_router(agents.router, prefix="/api")
 app.include_router(webhooks.router, prefix="/api")
+app.include_router(events.router, prefix="/api")
 
 @app.get("/healthcheck")
 async def healthcheck():

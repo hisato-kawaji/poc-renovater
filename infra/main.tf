@@ -208,3 +208,43 @@ resource "google_cloud_run_service_iam_member" "web_invoker" {
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
+
+# Pub/Sub Topic for Tasks
+resource "google_pubsub_topic" "tasks" {
+  name = "poc-foundry-tasks"
+}
+
+# Allow API SA to publish
+resource "google_project_iam_member" "api_pubsub_publisher" {
+  project = var.project_id
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:${google_service_account.api.email}"
+}
+
+# Service Account for Pub/Sub Push to Cloud Run
+resource "google_service_account" "pubsub_invoker" {
+  account_id   = "sa-pubsub-invoker"
+  display_name = "PubSub Invoker Service Account"
+}
+
+resource "google_cloud_run_service_iam_member" "pubsub_invoker_run" {
+  location = google_cloud_run_v2_service.api.location
+  project  = google_cloud_run_v2_service.api.project
+  service  = google_cloud_run_v2_service.api.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.pubsub_invoker.email}"
+}
+
+# Pub/Sub Push Subscription
+resource "google_pubsub_subscription" "tasks_push" {
+  name  = "poc-foundry-tasks-push"
+  topic = google_pubsub_topic.tasks.name
+
+  push_config {
+    push_endpoint = "${google_cloud_run_v2_service.api.uri}/api/events/pubsub"
+
+    oidc_token {
+      service_account_email = google_service_account.pubsub_invoker.email
+    }
+  }
+}
