@@ -386,6 +386,15 @@ class AgentUseCase:
                 "url": url,
                 "status": "ready"
             })
+            
+            import datetime
+            now = datetime.datetime.utcnow().isoformat() + "Z"
+            await self.repo.save_message(upload_id, {
+                "role": "assistant",
+                "content": f"🚀 PR #{pr_number} のプレビューデプロイが完了しました！\nURL: {url}",
+                "timestamp": now
+            })
+            
             return {"deployId": service_name, "url": url}
         except Exception as e:
             logger.error(f"Failed to deploy preview for {upload_id} PR {pr_number}: {e}")
@@ -445,6 +454,15 @@ class AgentUseCase:
                 "url": url,
                 "status": "ready"
             })
+            
+            import datetime
+            now = datetime.datetime.utcnow().isoformat() + "Z"
+            await self.repo.save_message(upload_id, {
+                "role": "assistant",
+                "content": f"🚀 本番(main)ブランチのデプロイが完了しました！\nURL: {url}",
+                "timestamp": now
+            })
+            
             return {"deployId": service_name, "url": url}
         except Exception as e:
             logger.error(f"Failed to deploy production for {upload_id}: {e}")
