@@ -30,6 +30,10 @@ class IssueItem(BaseModel):
 class IssuePlan(BaseModel):
     issues: List[IssueItem]
 
+class AutoFixIssuePlan(BaseModel):
+    critical_analysis: str = Field(description="Step-by-step critical analysis of the codebase, evaluating potential build errors, DB config typos, and setup bugs. Justify whether autofix is needed.")
+    issues: List[IssueItem] = Field(description="The list of autofix issues. Empty if no issues found.")
+
 class CodeChange(BaseModel):
     branchName: str = Field(description="Branch name for the PR")
     prTitle: str = Field(description="PR Title")
