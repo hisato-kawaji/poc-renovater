@@ -134,7 +134,7 @@ export default function IssueList({ uploadId, agentResult }: { uploadId: string,
               </div>
               <PRViewer 
                 uploadId={uploadId} 
-                prNumber={parseInt(issue.prUrl.split("/").pop() || "0")} 
+                prNumber={issue.prUrl.split("/").pop() || "0"} 
                 prBranch={agentResult.prBranch || "main"} 
                 onApproved={async () => {
                   // Mark as merged

@@ -20,7 +20,7 @@ gcloud run deploy poc-renovater-api \
   --image ${REGISTRY}/api:latest \
   --region ${REGION} \
   --project ${PROJECT_ID} \
-  --set-secrets="/secrets/env/.env=poc-renovater-api-env:latest" \
+  --set-secrets="/secrets/env/.env=poc-foundry-api-env:latest" \
   --quiet
 
 API_URL=$(gcloud run services describe poc-renovater-api --region ${REGION} --project ${PROJECT_ID} --format="value(status.url)")

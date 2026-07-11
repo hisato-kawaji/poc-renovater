@@ -112,6 +112,7 @@ resource "google_cloud_run_v2_service" "api" {
   name     = "poc-renovater-api"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
+  deletion_protection = false
 
   template {
     service_account = google_service_account.api.email
@@ -168,6 +169,7 @@ resource "google_cloud_run_v2_service" "web" {
   name     = "poc-renovater-web"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
+  deletion_protection = false
 
   template {
     service_account = google_service_account.web.email
