@@ -20,6 +20,14 @@ class CodingAgentClient:
             "source_tree": tree
         }
         json_str = await run_agent(self.deps, "coding-agent", build_coding_agent, str(input_data))
+        json_str = json_str.strip()
+        if json_str.startswith("```json"):
+            json_str = json_str[7:]
+        elif json_str.startswith("```"):
+            json_str = json_str[3:]
+        if json_str.endswith("```"):
+            json_str = json_str[:-3]
+        json_str = json_str.strip()
         return CodeChange.model_validate_json(json_str)
 
     async def execute(self, repo_name: str, code_change: CodeChange):

@@ -35,11 +35,11 @@ async def run_agent(deps: Deps, agent_name: str, build_fn, input_data: str):
         logger.info(f"DEBUG: run_agent events returned {len(all_events)} events")
         for event in reversed(all_events):
             if event.author == engine.name and event.content and event.content.parts:
-                return event.content.parts[0].text
+                return "".join([p.text for p in event.content.parts if p.text])
         # Fallback
         for event in reversed(all_events):
             if event.author != "user" and event.content and event.content.parts:
-                return event.content.parts[0].text
+                return "".join([p.text for p in event.content.parts if p.text])
         return ""
 
     if deps.settings.agent_runtime == "agent_engine":

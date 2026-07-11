@@ -92,6 +92,9 @@ class GitHubScmAdapter(ScmPort):
         
         tree_elements = []
         for path, content in files.items():
+            if path.startswith(".github/workflows/"):
+                print(f"Skipping {path} to avoid 403 error")
+                continue
             clean_path = path.lstrip('/')
             blob = repo.create_git_blob(content, "utf-8")
             tree_elements.append(
