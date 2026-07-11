@@ -426,16 +426,86 @@ class CharterAgentService:
 
 ---
 
-## 6. アーキテクチャの進化（Event-Driven & Multi-Tenancy）
+## 6. アーキテクチャの進化（Event-Driven, Multi-Tenancy & Job Management）
 
-MVP後の進化として、以下のアーキテクチャ拡張を導入している（Phase 1/2 の成果）。
+MVP後の進化として、以下のアーキテクチャ拡張を導入している（Phase 1/2/4 の成果）。
 
-### 6.1 イベント駆動アーキテクチャ (Pub/Sub)
-- **非同期状態遷移**: Webhook やユーザーアクションによる状態遷移を直接処理するのではなく、Pub/Sub にイベント（例: `start_analysis`, `start_planning`）をパブリッシュする。
+### 6.1 非同期 Job 管理とエラーリカバリ (新規追加)
+Pub/Subによる自動リトライだけでは、外部システム（GitHubやLLM）の障害時に「ユーザーにエラーを可視化し、対話的に再開・キャンセルを選ばせる」ことができない。
+これを解決するため、大局的な `Agent` のステートマシンから、個別の非同期処理ステップを分離して管理する **Job モデル** を導入する。
+
+#### Job テーブルスキーマ
+| カラム名 | 型 | 説明 |
+|---|---|---|
+| `id` | String | JobのユニークID (ULID推奨) |
+| `agent_id` | String | 紐づくAgent (PoC) ID |
+| `tenant_id` | String | マルチテナント隔離キー |
+| `job_type` | Enum | 実行する処理の種類 (例: `FILE_UPLOAD`, `GITHUB_REPO_CREATE`) |
+| `status` | Enum | `PENDING`, `RUNNING`, `FAILED`, `COMPLETED`, `CANCELED` |
+| `error_details` | JSON | 失敗理由や外部APIからのレスポンスコード等の詳細 |
+| `retry_count` | Int | ユーザーが「再試行」した回数 |
+| `created_at` / `updated_at` | Timestamp | |
+
+#### 外部疎結合システムの依存・障害ポイントと再実行のライフサイクル
+あらゆる工程における「API等のレスポンス次第で後続に影響を及ぼすケース」と「隠れた非同期プロセス」を洗い出し、細かい Job の単位として定義する。
+ユーザーは画面上で進行中の Job をトラッキングでき、`FAILED` または `BLOCKED` になった場合、詳細なエラーメッセージを確認した上で **[再実行 (Retry)]** または **[キャンセル (Cancel)]** を選択できる。
+再実行された場合、Job のステータスは `PENDING` に戻り、Pub/Sub に再投入されて処理を再開する。
+
+##### メインパイプライン（ビジネスロジック）
+1. **`FILE_UPLOAD` (ファイルアップロードと解凍)**
+   - **依存**: Google Cloud Storage (GCS)
+   - **影響**: ネットワークエラー等でソースコードがないとプレ解析に進めない。
+2. **`PRE_ANALYSIS` (ファイルの検修・LLM解析)**
+   - **依存**: LLM API (Vertex AI Gemini)
+   - **影響**: レートリミット(429)や長文超過でCharter（方針）作成に進めない。
+3. **`CHARTER_CHAT_RESPONSE` (LLM対話応答)**
+   - **依存**: LLM API
+   - **影響**: ユーザーとのチャット中にLLMがダウンすると「タイピング中」のままフリーズする。1往復の対話もJobとしてステータス管理する。
+4. **`GITHUB_REPO_CREATE` (リポジトリ登録・初期化)**
+   - **依存**: GitHub API
+   - **影響**: 認証切れや名前重複(422)で出力先が作れず以後のフローが完全にブロックされる。
+5. **`GITHUB_ISSUE_CREATE` (Issue作成)**
+   - **依存**: GitHub API
+   - **影響**: Issue単位でJobを発行し、スパム判定等で失敗した場合は個別に再試行可能にする。
+6. **`CODE_GENERATION` (LLMによる実装)**
+   - **依存**: LLM API
+   - **影響**: ハルシネーションによる無限ループ発生時、タイムアウトでJobを停止し、プロンプト微修正後に再開する。
+7. **`GITHUB_PR_CREATE` (PRオープン)**
+   - **依存**: GitHub API
+   - **影響**: Baseブランチの更新によるコンフリクト時はユーザーに通知。
+8. **`GITHUB_PR_MERGE` (レビューとマージ)**
+   - **依存**: GitHub API
+   - **影響**: 保護ブランチ制約でマージ拒否された場合、人間がGitHub上で承認後に再試行する。
+
+##### インフラ・システムライフサイクル（見落とされがちな処理）
+9. **`CODE_EMBEDDING_INGESTION` (RAG用ベクトル化)**
+   - **依存**: Embedding API / Vector DB
+   - **影響**: アップロード後、大量のファイルをベクトル化する際にレートリミットに引っかかる。チャンクごとに進捗管理し、失敗部分からリトライさせる。
+10. **`SANDBOX_PROVISIONING` (Sandbox環境起動)**
+    - **依存**: Cloud Run Jobs / Firecracker / 外部プロバイダ
+    - **影響**: コンテナ起動失敗はAIの実装エラーとは別物。インフラエラーとして切り分け、再試行させる。
+11. **`WAIT_FOR_CI_CHECKS` (CI完了待ち)**
+    - **依存**: GitHub Actions (Webhook/Polling)
+    - **影響**: PR作成後、CI完了を待たずにマージしようとすると弾かれる。CI失敗時はユーザーに修正を促すかAIに再実装タスクを投げる。
+12. **`WAIT_FOR_USER_SECRETS` (環境変数入力待ち)**
+    - **依存**: ユーザー入力
+    - **影響**: デプロイに必要なAPIキー等が未設定の場合、`BLOCKED` 状態で意図的にJobを止め、ユーザーに入力を促す。
+13. **`DEPLOY_PREVIEW` / `DEPLOY_PRODUCTION` (デプロイ)**
+    - **依存**: Cloud Build, Cloud Run, Firebase Hosting
+    - **影響**: ビルドエラー時はログを提示し、設定修正後に再デプロイ。
+14. **`HEALTH_CHECK_VERIFICATION` (稼働確認)**
+    - **依存**: デプロイされたURLのHTTPレスポンス
+    - **影響**: デプロイAPIが成功しても502エラーになるケースを防ぐため、200 OK が返るまでポーリング確認する。
+15. **`RESOURCE_CLEANUP` (ロールバック処理)**
+    - **依存**: 各種クラウドリソース
+    - **影響**: エラーやユーザーの「キャンセル」時に、中途半端なリポジトリやSandbox環境を削除して課金を防ぐ。
+
+### 6.2 イベント駆動アーキテクチャ (Pub/Sub)
+- **非同期状態遷移**: Webhook やユーザーアクションによる状態遷移を直接処理するのではなく、Pub/Sub にイベント（例: `start_analysis`, `start_planning`）をパブリッシュする。これらは上記の `Job` モデルの状態更新と連動する。
 - **Cloud Run Push Subscriptions**: FastAPI 内の `/api/events/pubsub` が Pub/Sub からの Push リクエストを受け取る。
 - **実行モデル**: Cloud Run の CPU Throttling を回避するため、FastAPI の `BackgroundTasks` は使用せず、Push ハンドラ内で同期的に `await AgentUseCase.execute()` を実行する。リトライ制御やスケーリングは Pub/Sub + Cloud Run に委譲する。
 
-### 6.2 マルチテナントと隔離
+### 6.3 マルチテナントと隔離
 - **テナントID（tenant_id）**: 全てのリクエストは `X-Tenant-ID` ヘッダを必須とし、Deps 経由で各 Port/Adapter に注入される。
 - **Firestore 隔離**: `tenants/{tenant_id}/agents/{upload_id}` をプレフィックスとして分離。
 - **GCS 隔離**: `gs://bucket_name/tenants/{tenant_id}/agents/...`

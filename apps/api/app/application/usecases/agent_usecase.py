@@ -10,6 +10,7 @@ from app.application.agents.ingest import IngestAgentClient
 from app.application.agents.charter import CharterAgentClient
 from app.application.agents.repo import RepoAgentClient
 from app.application.agents.issue_planner import IssuePlannerClient
+from app.application.agents.autofix_planner import AutoFixPlannerClient
 from app.application.agents.coding import CodingAgentClient
 from app.application.agents.review import ReviewAgentClient
 from app.domain.repositories.agent_repository import AgentRepository
@@ -147,6 +148,38 @@ class AgentUseCase:
         analysis = Analysis.model_validate(doc["analysis"])
         charter = CharterEvaluation.model_validate(doc["charter"])
         repo_name = doc["repo"]["fullName"].split("/")[-1]
+
+        logger.info(f"[{upload_id}] Invoking AutoFixPlannerClient to fix basic operational bugs")
+        autofix_client = AutoFixPlannerClient(self.deps)
+        autofix_plan = await autofix_client.plan(analysis, charter)
+        
+        if autofix_plan.issues:
+            logger.info(f"[{upload_id}] Found {len(autofix_plan.issues)} autofix issues. Implementing automatically...")
+            coding_client = CodingAgentClient(self.deps)
+            created_autofix_issues = await autofix_client.execute(repo_name, autofix_plan)
+            
+            for i, issue in enumerate(autofix_plan.issues):
+                issue_id = f"autofix-{i}"
+                issue_doc = {
+                    "id": issue_id,
+                    "title": issue.title,
+                    "type": issue.type,
+                    "body": issue.body,
+                    "status": "in_progress",
+                    "priority": issue.priority,
+                    "url": created_autofix_issues[i]["url"]
+                }
+                
+                try:
+                    logger.info(f"[{upload_id}] Autofix Coding: {issue.title}")
+                    code_change = await coding_client.implement(issue_doc, charter, repo_name)
+                    url, branch = await coding_client.execute(repo_name, code_change)
+                    pr_url = self.scm.create_pr(repo_name, f"Autofix: {issue.title}", issue.body, branch, "main")
+                    pr_number = int(pr_url.split("/")[-1])
+                    self.scm.merge_pr(repo_name, pr_number)
+                    logger.info(f"[{upload_id}] Autofix merged successfully.")
+                except Exception as e:
+                    logger.error(f"[{upload_id}] Autofix failed: {e}")
 
         logger.info(f"[{upload_id}] Invoking IssuePlannerClient to plan missing features")
         client = IssuePlannerClient(self.deps)
