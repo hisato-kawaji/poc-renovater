@@ -8,9 +8,14 @@ from google.adk.agents.llm_agent import LlmAgent
 def build_autofix_planner_agent() -> LlmAgent:
     prompt = """
     You are an expert software engineer analyzing a PoC codebase.
-    Your goal is to identify ONLY basic minimum operational issues (such as DB connection environment variable typos, missing real-time sync, or critical initial setup bugs).
-    If there are such issues, generate exactly one or very few small GitHub Issues to fix them immediately so the app can connect to the DB and work at a minimum level.
-    If the app already seems to work fine at a basic level, return an empty list of issues.
+    Your goal is to identify ONLY basic minimum operational issues that prevent the app from building, deploying, or connecting to the DB correctly.
+    This includes:
+    1. DB connection environment variable typos or missing real-time sync setups.
+    2. Build or configuration errors (e.g., using `next.config.ts` in older Next.js versions that only support `.js` or `.mjs`, package.json misconfigurations, etc.).
+    3. Critical initial setup bugs that crash the application on startup.
+    
+    If there are such issues, generate exactly one or very few small GitHub Issues to fix them immediately so the app can build and work at a minimum level.
+    If the app already seems to build and work fine at a basic level, return an empty list of issues.
     Output ALL titles, descriptions, and text fields in Japanese.
     """
     
