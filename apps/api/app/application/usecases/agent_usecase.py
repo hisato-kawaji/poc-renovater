@@ -3,6 +3,7 @@ import io
 import sys
 import os
 import logging
+from datetime import datetime, timezone
 from typing import Dict, Any, Tuple, List
 from app.deps import Deps
 from app.application.agents.ingest import IngestAgentClient
@@ -86,6 +87,7 @@ class AgentUseCase:
         await self.repo.save(upload_id, {
             "id": upload_id,
             "status": status.value,
+            "createdAt": datetime.now(timezone.utc).isoformat(),
             "analysis": analysis.model_dump(),
             "charter": charter_eval.model_dump()
         })
@@ -117,7 +119,7 @@ class AgentUseCase:
 
         client = RepoAgentClient(self.deps)
         plan = await client.plan(upload_id, analysis, charter)
-        repo_url, repo_name = await client.execute(plan, source_tree_str, file_contents)
+        repo_url, repo_name = await client.execute(plan, source_tree_str, file_contents, upload_id)
 
         await self.repo.update(upload_id, {
             "status": AgentStatus.REGISTERED.value,
@@ -335,17 +337,34 @@ class AgentUseCase:
 
         service_name = f"poc-{upload_id[:8]}-pr{pr_number}".lower()
         
-        from app.application.agents.deploy import DeployAgentClient
-        client = DeployAgentClient(self.deps)
-        url = await client.deploy(repo_url, branch, service_name)
-        
-        await self.repo.save_deployment(upload_id, {
-            "prNumber": pr_number,
-            "service": service_name,
-            "url": url,
-            "status": "ready"
-        })
-        return {"deployId": service_name, "url": url}
+        try:
+            from app.application.agents.deploy import DeployAgentClient
+            client = DeployAgentClient(self.deps)
+            url = await client.deploy(repo_url, branch, service_name)
+            
+            await self.repo.save_deployment(upload_id, {
+                "prNumber": pr_number,
+                "service": service_name,
+                "url": url,
+                "status": "ready"
+            })
+            return {"deployId": service_name, "url": url}
+        except Exception as e:
+            logger.error(f"Failed to deploy preview for {upload_id} PR {pr_number}: {e}")
+            await self.repo.save_deployment(upload_id, {
+                "prNumber": pr_number,
+                "service": service_name,
+                "url": "",
+                "status": "failed",
+                "error": str(e)
+            })
+            raise e
+
+    async def get_deployments(self, upload_id: str) -> List[Dict[str, Any]]:
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
+        return await self.repo.get_deployments(upload_id)
 
     async def approve_pull(self, upload_id: str, pr_number: int) -> Dict[str, Any]:
         doc = await self.repo.get(upload_id)
@@ -354,9 +373,90 @@ class AgentUseCase:
             
         repo_name = doc["repo"]["fullName"].split("/")[-1]
         self.scm.merge_pr(repo_name, pr_number)
+        
+        pulls = await self.repo.get_pulls(upload_id)
+        pull_doc = next((p for p in pulls if str(pr_number) in p.get("url", "")), None)
+        if pull_doc and pull_doc.get("issueId"):
+            await self.repo.update_issue(upload_id, pull_doc["issueId"], {"status": "completed"})
+            
         await self.repo.update(upload_id, {"status": AgentStatus.MERGED.value})
+        
+        # Trigger deploy_production event
+        from app.interface.http.routers.agents import publish_event
+        await publish_event(self.deps, "deploy_production", {"upload_id": upload_id})
+        
         return {"merged": True}
+
+    async def deploy_production(self, upload_id: str) -> Dict[str, Any]:
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
+
+        repo_url = doc["repo"]["url"]
+        branch = "main"
+        service_name = f"poc-{upload_id[:8]}-prod".lower()
+        
+        try:
+            from app.application.agents.deploy import DeployAgentClient
+            client = DeployAgentClient(self.deps)
+            url = await client.deploy(repo_url, branch, service_name)
+            
+            await self.repo.save_deployment(upload_id, {
+                "prNumber": 0, # 0 means production
+                "service": service_name,
+                "url": url,
+                "status": "ready"
+            })
+            return {"deployId": service_name, "url": url}
+        except Exception as e:
+            logger.error(f"Failed to deploy production for {upload_id}: {e}")
+            await self.repo.save_deployment(upload_id, {
+                "prNumber": 0,
+                "service": service_name,
+                "url": "",
+                "status": "failed",
+                "error": str(e)
+            })
+            raise e
 
     async def stop_agent(self, upload_id: str) -> Dict[str, Any]:
         await self.repo.update(upload_id, {"status": AgentStatus.IDLE.value})
         return {"status": "stopped"}
+
+    async def get_jobs(self, upload_id: str) -> List[Dict[str, Any]]:
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
+        return await self.repo.get_jobs(upload_id)
+
+    async def retry_job(self, upload_id: str, job_id: str) -> Dict[str, Any]:
+        doc = await self.repo.get(upload_id)
+        if not doc:
+            raise NotFoundError(f"Agent {upload_id} not found")
+
+        job = await self.repo.get_job(upload_id, job_id)
+        if not job:
+            raise NotFoundError(f"Job {job_id} not found")
+        if job.get("status") != "FAILED":
+            raise ConflictError("Only failed jobs can be retried")
+
+        task_name = job.get("type")
+        payload = {"upload_id": upload_id}
+        if task_name == "implement_issue":
+            payload["issue_id"] = job.get("issue_id")
+        elif task_name == "review_pull":
+            payload["pr_number"] = job.get("pr_number")
+
+        topic = self.settings.pubsub_topic_tasks
+        payload["tenant_id"] = self.deps.tenant_id
+        
+        await self.repo.update_job(upload_id, job_id, {"status": "PENDING", "error_details": None})
+        
+        try:
+            await self.deps.event_publisher.publish(topic, task_name, payload)
+        except Exception as e:
+            logger.error(f"Failed to republish event for job {job_id}: {e}")
+            await self.repo.update_job(upload_id, job_id, {"status": "FAILED", "error_details": {"error": str(e)}})
+            raise e
+
+        return {"message": "Job retry initiated", "jobId": job_id}

@@ -1,213 +1,177 @@
 "use client";
-import { useState, useEffect } from "react";
 
-import CharterChat from "../components/CharterChat";
-import IssueList from "../components/IssueList";
-import PRViewer from "../components/PRViewer";
-import DebugConsole from "../components/DebugConsole";
-import PipelineProgress from "../components/PipelineProgress";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { PlusCircle, Search, Activity, Code2, Server, CheckCircle2, AlertCircle, Clock, ExternalLink } from "lucide-react";
 
-export default function Home() {
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+type Agent = {
+  id: string;
+  status: string;
+  repo?: { fullName: string; url: string };
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+const statusColors: Record<string, string> = {
+  ANALYZING: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  PASSED: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+  REJECTED: "bg-red-500/10 text-red-500 border-red-500/20",
+  REGISTERED: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+  PLANNING: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
+  PR_OPEN: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+  PREVIEW_READY: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
+  CHANGES_REQUESTED: "bg-rose-500/10 text-rose-500 border-rose-500/20",
+  MERGED: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+  ERROR: "bg-red-500/10 text-red-500 border-red-500/20",
+  IDLE: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",
+};
+
+const statusIcons: Record<string, React.ReactNode> = {
+  ANALYZING: <Activity size={14} />,
+  PASSED: <CheckCircle2 size={14} />,
+  REJECTED: <AlertCircle size={14} />,
+  REGISTERED: <Code2 size={14} />,
+  PLANNING: <Clock size={14} />,
+  PR_OPEN: <Code2 size={14} />,
+  PREVIEW_READY: <Server size={14} />,
+  MERGED: <CheckCircle2 size={14} />,
+  ERROR: <AlertCircle size={14} />,
+  IDLE: <Clock size={14} />,
+};
+
+export default function Dashboard() {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!result?.uploadId) return;
-    const interval = setInterval(async () => {
+    async function fetchAgents() {
       try {
-        const res = await fetch(`http://localhost:8000/api/agents/${result.uploadId}`);
+        const res = await fetch("/api/agents");
         if (res.ok) {
           const data = await res.json();
-          setResult((prev: any) => {
-            if (!prev) return data;
-            const next = { ...prev, ...data };
-            if (JSON.stringify(prev) !== JSON.stringify(next)) {
-              if (['PASSED', 'REJECTED', 'ERROR', 'REGISTERED', 'PLANNING', 'PR_OPEN', 'PREVIEW_READY', 'MERGED'].includes(data.status)) {
-                setUploading(false);
-              }
-              return next;
-            }
-            return prev;
-          });
+          setAgents(data);
         }
       } catch (e) {
-        console.error("Polling error", e);
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [result?.uploadId]);
-
-  const handleUpload = async () => {
-    if (!file) return;
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      // Upload API
-      const upRes = await fetch("http://localhost:8000/api/uploads", {
-        method: "POST",
-        body: formData,
-      });
-      const { uploadId } = await upRes.json();
-      setResult({ uploadId, status: "ANALYZING" });
-
-      // Analyze API
-      await fetch("http://localhost:8000/api/agents:analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uploadId }),
-      });
-      // Polling is handled by useEffect
-    } catch (e) {
-      console.error(e);
-      alert("Error occurred");
-      setUploading(false);
     }
-  };
+    fetchAgents();
+  }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      <main className="flex-1 overflow-auto p-8">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8 text-gray-900">PoC Foundry</h1>
-          
-          {result && <PipelineProgress status={result.status} />}
-
-          <div className="mb-8 p-6 border rounded-xl bg-white shadow-sm">
-            <label className="block mb-2 font-semibold text-gray-700 text-lg">対象のPoC（.zipファイル）を選択してください</label>
-            <p className="text-sm text-gray-500 mb-6">※フォルダをアップロードする場合は、事前に右クリック等でzip圧縮してください。</p>
-            <input 
-              type="file" 
-              accept=".zip" 
-              onChange={(e) => setFile(e.target.files?.[0] || null)} 
-              className="mb-6 block w-full text-sm text-gray-500
-                file:mr-4 file:py-2.5 file:px-4
-                file:rounded-lg file:border-0
-                file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100
-                border border-gray-200 rounded-lg p-3 bg-gray-50 cursor-pointer"
-            />
-            <button 
-              onClick={handleUpload} 
-              disabled={!file || uploading}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm transition-colors"
-            >
-              {uploading ? "Analyzing..." : "Upload & Analyze"}
-            </button>
-          </div>
-
-          {result && (
-            <div className="p-6 border rounded-xl bg-white shadow-sm space-y-8">
-              <div>
-                <h2 className="text-2xl font-semibold mb-4">Results</h2>
-                <div className="p-4 rounded-lg text-white font-bold text-lg bg-gray-800 flex items-center justify-between">
-                  <span>Status</span>
-                  <span className={result.status === "PASSED" ? "text-green-400" : result.status === "REJECTED" ? "text-red-400" : "text-blue-400"}>{result.status}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="border rounded-lg overflow-hidden flex flex-col">
-                  <h3 className="text-lg font-semibold bg-gray-50 px-4 py-3 border-b">Charter Evaluation</h3>
-                  <pre className="p-4 overflow-auto text-xs max-h-96 text-gray-800 flex-1">
-                    {JSON.stringify(result.charter, null, 2)}
-                  </pre>
-                </div>
-                <div className="border rounded-lg overflow-hidden flex flex-col">
-                  <h3 className="text-lg font-semibold bg-gray-50 px-4 py-3 border-b">Interactive Chat</h3>
-                  <div className="p-4 flex-1">
-                    <CharterChat uploadId={result.uploadId} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="border rounded-lg overflow-hidden">
-                <h3 className="text-lg font-semibold bg-gray-50 px-4 py-3 border-b">Technical Analysis</h3>
-                <pre className="p-4 overflow-auto text-xs max-h-64 text-gray-800">
-                  {JSON.stringify(result.analysis, null, 2)}
-                </pre>
-              </div>
-
-              {result.status === 'PASSED' && (
-                <div className="mt-4">
-                  <button 
-                    onClick={async () => {
-                      setUploading(true);
-                      try {
-                        await fetch(`http://localhost:8000/api/agents/${result.uploadId}:register`, { method: 'POST' });
-                      } catch (e) {
-                        console.error(e);
-                      }
-                    }}
-                    disabled={uploading}
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
-                  >
-                    {uploading ? "Processing..." : "Register to GitHub"}
-                  </button>
-                </div>
-              )}
-              
-              {result.status === 'REGISTERED' && (
-                <div className="mt-4">
-                  <button 
-                    onClick={async () => {
-                      setUploading(true);
-                      try {
-                        await fetch(`http://localhost:8000/api/agents/${result.uploadId}/issues:plan`, { method: 'POST' });
-                      } catch (e) {
-                        console.error(e);
-                      }
-                    }}
-                    disabled={uploading}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
-                  >
-                    {uploading ? "Processing..." : "Plan Issues"}
-                  </button>
-                </div>
-              )}
-              
-              {['PLANNING', 'PR_OPEN', 'PREVIEW_READY', 'MERGED'].includes(result.status) && (
-                <div className="mt-8 border-t pt-8">
-                  <h3 className="text-2xl font-semibold mb-6">Issues & Implementation</h3>
-                  <IssueList 
-                    uploadId={result.uploadId} 
-                    onImplemented={(prUrl, branch) => {
-                      setResult({...result, status: 'PR_OPEN', prNumber: prUrl.split('/').pop(), prBranch: branch});
-                    }} 
-                  />
-                </div>
-              )}
-              
-              {['PR_OPEN', 'PREVIEW_READY'].includes(result.status) && (
-                <div className="mt-8 border-t pt-8">
-                  <PRViewer 
-                    uploadId={result.uploadId} 
-                    prNumber={result.prNumber} 
-                    prBranch={result.prBranch} 
-                    onApproved={() => setResult({...result, status: 'MERGED'})}
-                  />
-                </div>
-              )}
-
-              {result.status === 'MERGED' && (
-                <div className="mt-8 p-6 bg-green-50 border border-green-200 text-green-800 rounded-xl flex items-center gap-4">
-                  <div className="text-4xl">🎉</div>
-                  <div>
-                    <h3 className="text-xl font-bold mb-1">実装完了</h3>
-                    <p className="text-sm">PRがマージされ、Issue対応が完了しました。</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+    <div className="p-8 max-w-7xl mx-auto min-h-screen">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Dashboard</h1>
+          <p className="text-zinc-500 mt-1">Manage your active Proof of Concepts</p>
         </div>
-      </main>
-      <aside className="w-[450px] bg-gray-900 border-l border-gray-800 p-4 shadow-2xl flex flex-col">
-        <DebugConsole />
-      </aside>
+        <Link
+          href="/new"
+          className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-zinc-200 font-medium"
+        >
+          <PlusCircle size={18} />
+          New PoC
+        </Link>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
+        <div className="p-4 border-b border-zinc-200 flex items-center gap-4 bg-zinc-50/50">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search PoCs..."
+              className="w-full pl-10 pr-4 py-2 bg-white border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+            />
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="p-12 text-center text-zinc-400 flex flex-col items-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-300 border-t-indigo-600 mb-4"></div>
+            Loading PoCs...
+          </div>
+        ) : agents.length === 0 ? (
+          <div className="p-16 text-center">
+            <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <PlusCircle size={24} className="text-zinc-400" />
+            </div>
+            <h3 className="text-lg font-medium text-zinc-900 mb-1">No PoCs found</h3>
+            <p className="text-zinc-500 mb-6">Get started by creating your first Proof of Concept.</p>
+            <Link
+              href="/new"
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl transition-colors font-medium shadow-sm shadow-indigo-200"
+            >
+              <PlusCircle size={18} />
+              Create PoC
+            </Link>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-zinc-600">
+              <thead className="text-xs uppercase bg-zinc-50 text-zinc-500 border-b border-zinc-200">
+                <tr>
+                  <th className="px-6 py-4 font-medium">PoC ID</th>
+                  <th className="px-6 py-4 font-medium">Status</th>
+                  <th className="px-6 py-4 font-medium">Repository</th>
+                  <th className="px-6 py-4 font-medium">Created At</th>
+                  <th className="px-6 py-4 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {agents.map((agent) => (
+                  <tr key={agent.id} className="hover:bg-zinc-50/50 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center font-mono text-xs font-medium text-zinc-600 border border-zinc-200">
+                          {agent.id.substring(0, 2).toUpperCase()}
+                        </div>
+                        <span className="font-mono text-zinc-900 font-medium">{agent.id}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${statusColors[agent.status] || "bg-zinc-100 text-zinc-600 border-zinc-200"}`}>
+                        {statusIcons[agent.status]}
+                        {agent.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {agent.repo ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-zinc-700 font-medium">{agent.repo.fullName}</span>
+                          <a
+                            href={agent.repo.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-zinc-400 hover:text-indigo-600 transition-colors"
+                          >
+                            <ExternalLink size={14} />
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="text-zinc-400 italic">Not registered yet</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-zinc-500 text-sm">
+                      {agent.createdAt ? new Date(agent.createdAt).toLocaleString() : <span className="text-zinc-400 italic">Unknown</span>}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <Link
+                        href={`/poc/${agent.id}`}
+                        className="inline-flex items-center justify-center px-4 py-1.5 text-sm font-medium bg-white border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm group-hover:shadow"
+                      >
+                        Open Detail
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
