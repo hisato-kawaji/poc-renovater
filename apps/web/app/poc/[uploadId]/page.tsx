@@ -6,7 +6,6 @@ import { Activity, MessageSquare, Code2, Server, CheckCircle2, AlertCircle, Cloc
 
 import CharterChat from "../../../components/CharterChat";
 import IssueList from "../../../components/IssueList";
-import PRViewer from "../../../components/PRViewer";
 import { JobTracker } from "../../../components/JobTracker";
 import { ErrorModal } from "../../../components/ErrorModal";
 import { HITLModal } from "../../../components/HITLModal";
@@ -256,18 +255,17 @@ export default function PoCDetail() {
               <div className="space-y-8 max-w-5xl mx-auto">
                 {['PLANNING', 'PR_OPEN', 'PREVIEW_READY', 'MERGED'].includes(result?.status) ? (
                   <>
-                    <IssueList uploadId={uploadId} />
-                    
                     {['PR_OPEN', 'PREVIEW_READY'].includes(result?.status) && (
-                      <div className="mt-12 pt-8 border-t border-zinc-200">
-                        <PRViewer 
-                          uploadId={uploadId} 
-                          prNumber={result.prNumber} 
-                          prBranch={result.prBranch} 
-                          onApproved={() => setResult({...result, status: 'MERGED'})}
-                        />
+                      <div className="mb-6 p-4 bg-amber-100 border border-amber-300 text-amber-900 rounded-xl flex items-center gap-4 shadow-sm animate-pulse">
+                        <AlertCircle size={24} />
+                        <div>
+                          <h3 className="font-bold">レビュー待ち</h3>
+                          <p className="text-sm">実装が完了しました。下部でプレビュー結果を確認し、マージを判断してください。</p>
+                        </div>
                       </div>
                     )}
+                    <IssueList uploadId={uploadId} agentResult={result} />
+
 
                     {result?.status === 'MERGED' && (
                       <div className="mt-8 p-6 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-900 rounded-xl flex items-center gap-5 shadow-sm">

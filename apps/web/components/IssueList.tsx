@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import PRViewer from "./PRViewer";
 
 interface Issue {
   id: string;
@@ -13,7 +14,8 @@ interface Issue {
   prUrl?: string;
 }
 
-export default function IssueList({ uploadId }: { uploadId: string }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export default function IssueList({ uploadId, agentResult }: { uploadId: string, agentResult?: any }) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [implementingId, setImplementingId] = useState<string | null>(null);
@@ -83,13 +85,20 @@ export default function IssueList({ uploadId }: { uploadId: string }) {
       {issues.map(issue => (
         <div key={issue.id} className="border border-zinc-200 rounded-2xl p-6 bg-white shadow-sm hover:shadow-md transition-shadow flex flex-col gap-3 group relative overflow-hidden">
           <div className="flex justify-between items-start">
-            <h4 className="text-xl font-bold text-zinc-900 group-hover:text-indigo-700 transition-colors">{issue.title}</h4>
+            <div className="flex flex-col">
+              <h4 className="text-xl font-bold text-zinc-900 group-hover:text-indigo-700 transition-colors">{issue.title}</h4>
+              {issue.id.startsWith("autofix-") && (
+                <span className="text-xs font-semibold text-rose-500 mt-1">🔧 AUTO-FIX DETECTED</span>
+              )}
+            </div>
             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${
               issue.status === 'open' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-              issue.status === 'in_progress' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+              issue.status === 'in_progress' ? (issue.id.startsWith("autofix-") ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-700 border-amber-200') :
               'bg-emerald-50 text-emerald-700 border-emerald-200'
             }`}>
-              {issue.status.replace('_', ' ')}
+              {issue.status === 'open' ? (issue.id.startsWith("autofix-") ? "WAITING AUTO-FIX" : "WAITING FOR USER") : 
+               issue.status === 'in_progress' && issue.id.startsWith("autofix-") ? "AUTO-FIXING (自動対応中)" : 
+               issue.status.replace('_', ' ')}
             </span>
           </div>
           <p className="text-zinc-600 line-clamp-2 leading-relaxed">{issue.body}</p>
@@ -110,12 +119,30 @@ export default function IssueList({ uploadId }: { uploadId: string }) {
           <div className="mt-4 flex justify-end">
             <button 
               onClick={() => handleImplement(issue.id)}
-              disabled={implementingId === issue.id || issue.status !== 'open'}
+              disabled={implementingId === issue.id || issue.status !== 'open' || issue.id.startsWith("autofix-")}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
             >
-              {implementingId === issue.id ? "Starting..." : "Implement"}
+              {implementingId === issue.id ? "Starting..." : issue.id.startsWith("autofix-") && issue.status === 'open' ? "Auto-starting..." : "Implement"}
             </button>
           </div>
+
+          {/* Render PRViewer directly underneath the issue being worked on! */}
+          {issue.status === 'in_progress' && issue.prUrl && agentResult?.status && ['PR_OPEN', 'PREVIEW_READY'].includes(agentResult.status) && (
+            <div className="mt-6 pt-6 border-t border-zinc-200">
+              <div className="bg-amber-50 text-amber-800 p-3 rounded-lg text-sm font-semibold mb-4 border border-amber-200">
+                🔔 プレビューおよびマージの判断をお待ちしています
+              </div>
+              <PRViewer 
+                uploadId={uploadId} 
+                prNumber={parseInt(issue.prUrl.split("/").pop() || "0")} 
+                prBranch={agentResult.prBranch || "main"} 
+                onApproved={async () => {
+                  // Mark as merged
+                  window.location.reload();
+                }}
+              />
+            </div>
+          )}
         </div>
       ))}
     </div>
