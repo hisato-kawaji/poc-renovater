@@ -23,6 +23,8 @@ jobs:
         cache: 'pnpm'
     - run: pnpm install
     - run: pnpm run lint
+    - run: pnpm test
+    - run: pnpm run build-storybook
     - run: pnpm run build
 
   api:
@@ -42,3 +44,5 @@ jobs:
       run: uv sync --all-extras --dev
     - name: Run lint
       run: uv run ruff check .
+    - name: Run tests
+      run: uv run pytest

@@ -23,7 +23,7 @@ export default function Dashboard() {
 
   const fetchAgents = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/agents", {
+      const res = await fetch("/api/agents", {
         headers: { "X-Tenant-ID": "test-tenant" } // Mock tenant ID for now
       });
       if (res.ok) {

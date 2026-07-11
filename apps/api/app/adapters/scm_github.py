@@ -22,8 +22,11 @@ class GitHubScmAdapter(ScmPort):
         self.integration = GithubIntegration(self.app_id, private_key)
     
     def _get_github(self):
-        access_token = self.integration.get_access_token(int(self.installation_id)).token
+        access_token = self.get_access_token()
         return Github(access_token)
+
+    def get_access_token(self) -> str:
+        return self.integration.get_access_token(int(self.installation_id)).token
 
     def create_repo(self, repo_name: str, description: str) -> str:
         gh = self._get_github()
@@ -89,9 +92,10 @@ class GitHubScmAdapter(ScmPort):
         
         tree_elements = []
         for path, content in files.items():
+            clean_path = path.lstrip('/')
             blob = repo.create_git_blob(content, "utf-8")
             tree_elements.append(
-                github.InputGitTreeElement(path, '100644', 'blob', sha=blob.sha)
+                github.InputGitTreeElement(clean_path, '100644', 'blob', sha=blob.sha)
             )
         
         new_tree = repo.create_git_tree(tree_elements, base_tree)

@@ -13,28 +13,28 @@ interface Issue {
   prUrl?: string;
 }
 
-export default function IssueList({ uploadId, onImplemented }: { uploadId: string, onImplemented: (prUrl: string, branch: string) => void }) {
+export default function IssueList({ uploadId }: { uploadId: string }) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [implementingId, setImplementingId] = useState<string | null>(null);
 
-  const fetchIssues = async () => {
-    try {
-      const res = await fetch(`http://localhost:8000/api/agents/${uploadId}/issues`);
-      if (res.ok) {
-        const data = await res.json();
-        // Sort by priority (1 is highest)
-        data.sort((a: Issue, b: Issue) => a.priority - b.priority);
-        setIssues(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch issues", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchIssues = async () => {
+      try {
+        const res = await fetch(`/api/agents/${uploadId}/issues`);
+        if (res.ok) {
+          const data = await res.json();
+          // Sort by priority (1 is highest)
+          data.sort((a: Issue, b: Issue) => a.priority - b.priority);
+          setIssues(data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch issues", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchIssues();
     const interval = setInterval(fetchIssues, 5000); // poll to see status updates
     return () => clearInterval(interval);
@@ -44,7 +44,7 @@ export default function IssueList({ uploadId, onImplemented }: { uploadId: strin
     setImplementingId(issueId);
     try {
       // The API returns PR URL, but since it's a background task, the endpoint is now async
-      const res = await fetch(`http://localhost:8000/api/agents/${uploadId}/issues/${issueId}:implement`, {
+      const res = await fetch(`/api/agents/${uploadId}/issues/${issueId}:implement`, {
         method: "POST"
       });
       if (res.ok) {
@@ -58,43 +58,51 @@ export default function IssueList({ uploadId, onImplemented }: { uploadId: strin
       alert("Failed to start implementation.");
     } finally {
       setImplementingId(null);
-      fetchIssues(); // refresh status
     }
   };
 
   if (loading && issues.length === 0) {
-    return <div className="text-gray-500">Loading issues...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-300 border-t-indigo-600 mb-4"></div>
+        Loading issues...
+      </div>
+    );
   }
 
   if (issues.length === 0) {
-    return <div className="text-gray-500">No issues found.</div>;
+    return (
+      <div className="text-center py-20 bg-zinc-50 border border-dashed border-zinc-300 rounded-2xl">
+        <h3 className="text-lg font-medium text-zinc-900">No issues found.</h3>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
       {issues.map(issue => (
-        <div key={issue.id} className="border rounded-lg p-4 bg-white shadow-sm flex flex-col gap-2">
+        <div key={issue.id} className="border border-zinc-200 rounded-2xl p-6 bg-white shadow-sm hover:shadow-md transition-shadow flex flex-col gap-3 group relative overflow-hidden">
           <div className="flex justify-between items-start">
-            <h4 className="text-lg font-semibold">{issue.title}</h4>
-            <span className={`px-2 py-1 rounded text-xs font-medium uppercase ${
-              issue.status === 'open' ? 'bg-blue-100 text-blue-800' :
-              issue.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-green-100 text-green-800'
+            <h4 className="text-xl font-bold text-zinc-900 group-hover:text-indigo-700 transition-colors">{issue.title}</h4>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${
+              issue.status === 'open' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+              issue.status === 'in_progress' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+              'bg-emerald-50 text-emerald-700 border-emerald-200'
             }`}>
-              {issue.status}
+              {issue.status.replace('_', ' ')}
             </span>
           </div>
-          <p className="text-sm text-gray-600 line-clamp-2">{issue.body}</p>
-          <div className="flex gap-4 text-sm mt-2 text-gray-500">
-            <span>Type: <span className="font-medium text-gray-700">{issue.type}</span></span>
-            <span>Priority: <span className="font-medium text-gray-700">P{issue.priority}</span></span>
+          <p className="text-zinc-600 line-clamp-2 leading-relaxed">{issue.body}</p>
+          <div className="flex flex-wrap gap-4 text-sm mt-3 text-zinc-500 bg-zinc-50 p-3 rounded-xl border border-zinc-100">
+            <div className="flex items-center gap-1.5"><span className="uppercase text-xs font-bold tracking-wider text-zinc-400">Type</span> <span className="font-semibold text-zinc-700">{issue.type}</span></div>
+            <div className="flex items-center gap-1.5"><span className="uppercase text-xs font-bold tracking-wider text-zinc-400">Priority</span> <span className="font-semibold text-zinc-700">P{issue.priority}</span></div>
             {issue.url && (
-              <a href={issue.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+              <a href={issue.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-medium hover:underline">
                 View on GitHub
               </a>
             )}
             {issue.prUrl && (
-              <a href={issue.prUrl} target="_blank" rel="noreferrer" className="text-purple-600 hover:underline">
+              <a href={issue.prUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-purple-600 hover:text-purple-700 font-medium hover:underline">
                 View PR
               </a>
             )}
@@ -102,8 +110,8 @@ export default function IssueList({ uploadId, onImplemented }: { uploadId: strin
           <div className="mt-4 flex justify-end">
             <button 
               onClick={() => handleImplement(issue.id)}
-              disabled={implementingId !== null || issue.status !== 'open'}
-              className="bg-indigo-600 text-white px-4 py-2 rounded disabled:opacity-50"
+              disabled={implementingId === issue.id || issue.status !== 'open'}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
             >
               {implementingId === issue.id ? "Starting..." : "Implement"}
             </button>

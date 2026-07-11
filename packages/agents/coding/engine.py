@@ -5,6 +5,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../s
 from schemas import CodeChange
 from google.adk.agents.llm_agent import LlmAgent
 
+from google.genai import types
+
 def build_coding_agent() -> LlmAgent:
     prompt = """
     You are an expert software engineer.
@@ -17,6 +19,7 @@ def build_coding_agent() -> LlmAgent:
         name="coding",
         model=os.getenv("GEMINI_MODEL_PRO", "gemini-3.1-pro-preview"),
         instruction=prompt,
-        output_schema=CodeChange
+        output_schema=CodeChange,
+        generate_content_config=types.GenerateContentConfig(max_output_tokens=32000)
     )
     return agent

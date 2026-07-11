@@ -78,6 +78,7 @@ async def implement_issue(upload_id: str, issue_id: str, deps: Deps = Depends(ge
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
         
+    await usecase.repo.update_issue(upload_id, issue_id, {"status": "in_progress"})
     await publish_event(deps, "implement_issue", {"upload_id": upload_id, "issue_id": issue_id})
     return {"message": "Implementation started in background"}
 
@@ -122,13 +123,17 @@ async def get_pull_diff(upload_id: str, pr_number: int, usecase: AgentUseCase = 
         logger.error(f"Failed to get diff for PR {pr_number} on agent {upload_id}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-@router.post("/agents/{upload_id}/pulls/{pr_number}:deploy-preview")
-async def deploy_preview(upload_id: str, pr_number: int, usecase: AgentUseCase = Depends(get_agent_usecase)):
+@router.get("/agents/{upload_id}/deployments")
+async def get_deployments(upload_id: str, usecase: AgentUseCase = Depends(get_agent_usecase)):
     try:
-        return await usecase.deploy_preview(upload_id, pr_number)
-    except Exception as e:
-        logger.error(f"Failed to deploy preview for PR {pr_number} on agent {upload_id}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        return await usecase.get_deployments(upload_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.post("/agents/{upload_id}/pulls/{pr_number}:deploy-preview", status_code=status.HTTP_202_ACCEPTED)
+async def deploy_preview(upload_id: str, pr_number: int, deps: Deps = Depends(get_deps), usecase: AgentUseCase = Depends(get_agent_usecase)):
+    await publish_event(deps, "deploy_preview", {"upload_id": upload_id, "pr_number": str(pr_number)})
+    return {"message": "Deploy preview started in background"}
 
 @router.post("/agents/{upload_id}/pulls/{pr_number}:approve")
 async def approve_pull(upload_id: str, pr_number: int, usecase: AgentUseCase = Depends(get_agent_usecase)):

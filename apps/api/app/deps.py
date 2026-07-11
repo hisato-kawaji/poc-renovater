@@ -36,19 +36,18 @@ class Deps:
                 project_id=settings.google_cloud_project,
                 tenant_id=tenant_id
             )
-        self.event_publisher: EventPublisherPort = PubSubEventPublisher(
-            project_id=settings.google_cloud_project
-        )
+        if settings.agent_runtime == "local":
+            from app.adapters.local_event import LocalEventPublisher
+            self.event_publisher: EventPublisherPort = LocalEventPublisher()
+        else:
+            self.event_publisher: EventPublisherPort = PubSubEventPublisher(
+                project_id=settings.google_cloud_project
+            )
 
 async def get_deps(
     request: Request, 
     settings: Settings = Depends(get_settings),
     db_session: Optional[AsyncSession] = Depends(get_db_session)
 ) -> Deps:
-    tenant_id = request.headers.get("X-Tenant-ID")
-    if not tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="X-Tenant-ID header is missing"
-        )
+    tenant_id = request.headers.get("X-Tenant-ID", "test-tenant")
     return Deps(settings, tenant_id, db_session)

@@ -43,6 +43,10 @@ class AgentRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_deployments(self, upload_id: str) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
     async def save_deployment(self, upload_id: str, deployment_data: Dict[str, Any]) -> None:
         pass
 
@@ -52,4 +56,21 @@ class AgentRepository(ABC):
 
     @abstractmethod
     async def save_message(self, upload_id: str, message_data: Dict[str, Any]) -> None:
+        pass
+
+    # --- Job Management ---
+    @abstractmethod
+    async def get_jobs(self, upload_id: str) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    async def get_job(self, upload_id: str, job_id: str) -> Optional[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    async def save_job(self, upload_id: str, job_id: str, job_data: Dict[str, Any]) -> None:
+        pass
+
+    @abstractmethod
+    async def update_job(self, upload_id: str, job_id: str, updates: Dict[str, Any]) -> None:
         pass

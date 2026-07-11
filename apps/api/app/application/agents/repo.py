@@ -22,8 +22,10 @@ class RepoAgentClient:
         json_str = await run_agent(self.deps, "repo-agent", build_repo_agent, str(input_data))
         return RepoPlan.model_validate_json(json_str)
 
-    async def execute(self, plan: RepoPlan, source_tree_str: str, file_contents: dict):
-        url = self.deps.scm.create_repo(plan.repositoryName, plan.repositoryDescription)
+    async def execute(self, plan: RepoPlan, source_tree_str: str, file_contents: dict, upload_id: str):
+        short_id = upload_id.split("-")[0]
+        actual_repo_name = f"{plan.repositoryName}-{short_id}"
+        url = self.deps.scm.create_repo(actual_repo_name, plan.repositoryDescription)
         
         files_to_commit = file_contents.copy()
         files_to_commit["README.md"] = plan.readmeContent
@@ -42,6 +44,6 @@ class RepoAgentClient:
                     rel_path = rel_path[:-5]
                 files_to_commit[rel_path] = content
 
-        self.deps.scm.commit_files(plan.repositoryName, files_to_commit, "Initial commit from PoC Foundry with templates")
+        self.deps.scm.commit_files(actual_repo_name, files_to_commit, "Initial commit from PoC Foundry with templates")
         
-        return url, plan.repositoryName
+        return url, actual_repo_name

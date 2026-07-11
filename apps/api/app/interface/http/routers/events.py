@@ -8,6 +8,8 @@ from app.deps import Deps
 from app.settings import get_settings
 from app.application.usecases.agent_usecase import AgentUseCase
 from app.adapters.slack import send_slack_notification
+from app.adapters.repositories.database import get_db_session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -24,9 +26,29 @@ class PubSubPushRequest(BaseModel):
 async def run_usecase_task(task_name: str, usecase: AgentUseCase, func_name: str, *args):
     settings = get_settings()
     upload_id = args[0] if args else "unknown"
+    
+    job_id = f"job-{task_name}"
+    if task_name == "implement_issue":
+        job_id = f"job-{task_name}-{args[1]}"
+    elif task_name == "review_pull":
+        job_id = f"job-{task_name}-{args[1]}"
+
     try:
+        await usecase.repo.save_job(upload_id, job_id, {
+            "id": job_id,
+            "type": task_name,
+            "status": "RUNNING",
+            "issue_id": args[1] if task_name == "implement_issue" else None,
+            "pr_number": args[1] if task_name == "review_pull" else None
+        })
+        
         func = getattr(usecase, func_name)
         await func(*args)
+        
+        await usecase.repo.update_job(upload_id, job_id, {
+            "status": "COMPLETED"
+        })
+        
         if settings.slack_webhook_url:
             await send_slack_notification(
                 settings.slack_webhook_url, 
@@ -34,16 +56,30 @@ async def run_usecase_task(task_name: str, usecase: AgentUseCase, func_name: str
             )
     except Exception as e:
         logger.error(f"Event handler '{task_name}' failed: {e}", exc_info=True)
+        import traceback
+        error_details = {"error": str(e), "traceback": traceback.format_exc()}
+        
+        await usecase.repo.update_job(upload_id, job_id, {
+            "status": "FAILED",
+            "error_details": error_details
+        })
+        
+        if task_name == "implement_issue" and len(args) > 1:
+            issue_id = args[1]
+            await usecase.repo.update_issue(upload_id, issue_id, {"status": "open"})
+            await usecase.repo.update(upload_id, {"status": "PLANNING", "errorDetails": str(e), "failedJobId": job_id})
+        else:
+            await usecase.repo.update(upload_id, {"status": "ERROR", "errorDetails": str(e), "failedJobId": job_id})
+        
         if settings.slack_webhook_url:
             await send_slack_notification(
                 settings.slack_webhook_url, 
                 f"❌ Task `{task_name}` failed for Agent `{upload_id}`\nError: {e}"
             )
-        # Note: robust error handling / retry should go here
-
 @router.post("/events/pubsub")
 async def handle_pubsub_event(
-    req: PubSubPushRequest
+    req: PubSubPushRequest,
+    db_session: Optional[AsyncSession] = Depends(get_db_session)
 ):
     """
     Push endpoint for Google Cloud Pub/Sub.
@@ -70,7 +106,7 @@ async def handle_pubsub_event(
     logger.info(f"Handling Pub/Sub event: {event_type} for upload_id {upload_id}, tenant_id {tenant_id}")
     
     settings = get_settings()
-    deps = Deps(settings, tenant_id)
+    deps = Deps(settings, tenant_id, db_session)
     usecase = AgentUseCase(deps.agent_repo, deps.storage, deps.scm, deps.settings, deps)
 
     # Await usecase synchronously to prevent Cloud Run CPU throttling
@@ -87,6 +123,12 @@ async def handle_pubsub_event(
         pr_number_str = payload.get("pr_number")
         if pr_number_str and pr_number_str.isdigit():
             await run_usecase_task(event_type, usecase, "review_pull", upload_id, int(pr_number_str))
+    elif event_type == "deploy_preview":
+        pr_number_str = payload.get("pr_number")
+        if pr_number_str and pr_number_str.isdigit():
+            await run_usecase_task(event_type, usecase, "deploy_preview", upload_id, int(pr_number_str))
+    elif event_type == "deploy_production":
+        await run_usecase_task(event_type, usecase, "deploy_production", upload_id)
     else:
         logger.warning(f"Unknown event_type: {event_type}")
 

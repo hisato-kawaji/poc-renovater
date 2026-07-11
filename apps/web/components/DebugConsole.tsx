@@ -10,17 +10,18 @@ interface LogEntry {
 
 export default function DebugConsole() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [autoScroll, setAutoScroll] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/logs");
+        const res = await fetch("/api/logs");
         if (res.ok) {
           const data = await res.json();
           setLogs(data.logs);
         }
-      } catch (e) {
+      } catch {
         // Ignore fetch errors so it doesn't spam console
       }
     };
@@ -31,18 +32,36 @@ export default function DebugConsole() {
   }, []);
 
   useEffect(() => {
-    if (containerRef.current) {
+    if (autoScroll && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [logs]);
+  }, [logs, autoScroll]);
+
+  const handleScroll = () => {
+    if (containerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+      // Enable auto-scroll if within 50px of the bottom
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
+      setAutoScroll(isNearBottom);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
       <h3 className="text-white font-bold mb-4 border-b border-gray-700 pb-2 flex items-center justify-between">
         <span>System Logs</span>
-        <span className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400">Auto-refresh</span>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs px-2 py-1 rounded ${autoScroll ? 'bg-green-800 text-green-300' : 'bg-gray-800 text-gray-400'}`}>
+            Auto-scroll: {autoScroll ? 'ON' : 'OFF'}
+          </span>
+          <span className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400">Auto-refresh</span>
+        </div>
       </h3>
-      <div ref={containerRef} className="flex-1 overflow-auto font-mono text-[11px] leading-relaxed space-y-1">
+      <div 
+        ref={containerRef} 
+        onScroll={handleScroll}
+        className="flex-1 overflow-auto font-mono text-[11px] leading-relaxed space-y-1"
+      >
         {logs.length === 0 ? (
           <div className="text-gray-500 italic">No logs available...</div>
         ) : (

@@ -116,6 +116,13 @@ class SQLAgentRepository(AgentRepository):
         )
         await self.session.commit()
 
+    async def get_deployments(self, upload_id: str) -> List[Dict[str, Any]]:
+        result = await self.session.execute(
+            text("SELECT data FROM deployments WHERE agent_id = :upload_id AND tenant_id = :tenant_id"),
+            {"upload_id": upload_id, "tenant_id": self.tenant_id}
+        )
+        return [json.loads(row[0]) for row in result.fetchall()]
+
     async def save_deployment(self, upload_id: str, deployment_data: Dict[str, Any]) -> None:
         data_json = json.dumps(deployment_data)
         await self.session.execute(
@@ -144,3 +151,41 @@ class SQLAgentRepository(AgentRepository):
             {"upload_id": upload_id, "tenant_id": self.tenant_id, "data": data_json}
         )
         await self.session.commit()
+
+    # --- Job Management ---
+    async def get_jobs(self, upload_id: str) -> List[Dict[str, Any]]:
+        result = await self.session.execute(
+            text("SELECT data FROM jobs WHERE agent_id = :upload_id AND tenant_id = :tenant_id"),
+            {"upload_id": upload_id, "tenant_id": self.tenant_id}
+        )
+        return [json.loads(row[0]) for row in result.fetchall()]
+
+    async def get_job(self, upload_id: str, job_id: str) -> Optional[Dict[str, Any]]:
+        result = await self.session.execute(
+            text("SELECT data FROM jobs WHERE id = :job_id AND agent_id = :upload_id AND tenant_id = :tenant_id"),
+            {"job_id": job_id, "upload_id": upload_id, "tenant_id": self.tenant_id}
+        )
+        row = result.fetchone()
+        if not row:
+            return None
+        return json.loads(row[0])
+
+    async def save_job(self, upload_id: str, job_id: str, job_data: Dict[str, Any]) -> None:
+        data_json = json.dumps(job_data)
+        await self.session.execute(
+            text("""
+                INSERT INTO jobs (id, agent_id, tenant_id, data) 
+                VALUES (:job_id, :upload_id, :tenant_id, :data)
+                ON CONFLICT (id, agent_id, tenant_id) DO UPDATE SET data = EXCLUDED.data
+            """),
+            {"job_id": job_id, "upload_id": upload_id, "tenant_id": self.tenant_id, "data": data_json}
+        )
+        await self.session.commit()
+
+    async def update_job(self, upload_id: str, job_id: str, updates: Dict[str, Any]) -> None:
+        existing = await self.get_job(upload_id, job_id)
+        if not existing:
+            return
+            
+        existing.update(updates)
+        await self.save_job(upload_id, job_id, existing)

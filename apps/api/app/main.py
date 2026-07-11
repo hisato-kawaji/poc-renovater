@@ -5,8 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.settings import get_settings
-from app.interface.http.routers import uploads, agents, webhooks, events
-
+from app.interface.http.routers import uploads, agents, webhooks, events, jobs
 # Configure google-genai SDK to use Vertex AI
 settings = get_settings()
 os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "1"
@@ -26,7 +25,7 @@ app = FastAPI(title="PoC Foundry API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001", "http://localhost:3333", "http://127.0.0.1:3333"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,6 +35,7 @@ app.include_router(uploads.router, prefix="/api")
 app.include_router(agents.router, prefix="/api")
 app.include_router(webhooks.router, prefix="/api")
 app.include_router(events.router, prefix="/api")
+app.include_router(jobs.router, prefix="/api")
 
 @app.get("/healthcheck")
 async def healthcheck():
