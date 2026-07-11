@@ -178,6 +178,11 @@ class AgentUseCase:
                     pr_number = int(pr_url.split("/")[-1])
                     self.scm.merge_pr(repo_name, pr_number)
                     logger.info(f"[{upload_id}] Autofix merged successfully.")
+                    
+                    # Trigger deploy_production event
+                    from app.interface.http.routers.agents import publish_event
+                    await publish_event(self.deps, "deploy_production", {"upload_id": upload_id})
+                    logger.info(f"[{upload_id}] Triggered deploy_production for autofix.")
                 except Exception as e:
                     logger.error(f"[{upload_id}] Autofix failed: {e}")
 
