@@ -9,7 +9,7 @@ async def main():
         installation_id=settings.github_app_installation_id,
         private_key=settings.github_app_private_key,
         org=settings.github_org,
-        project_id="MY_GCP_PROJECT"
+        project_id="YOUR_PROJECT_ID"
     )
     repo_name = "poc-nextjs-firestore-app-863d369e"
     print("Testing repo:", repo_name)

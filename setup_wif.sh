@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-PROJECT_ID="MY_GCP_PROJECT"
+PROJECT_ID="YOUR_PROJECT_ID"
 REPO="YOUR_GITHUB_ACCOUNT/poc-renovater-agy"
 SA_NAME="github-actions"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"

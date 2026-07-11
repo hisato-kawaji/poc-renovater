@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-PROJECT_ID="MY_GCP_PROJECT"
+PROJECT_ID="YOUR_PROJECT_ID"
 REGION="asia-northeast1"
 REPO_NAME="poc-renovater"
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}"
