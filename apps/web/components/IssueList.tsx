@@ -119,7 +119,7 @@ export default function IssueList({ uploadId, agentResult }: { uploadId: string,
           <div className="mt-4 flex justify-end">
             <button 
               onClick={() => handleImplement(issue.id)}
-              disabled={implementingId === issue.id || issue.status !== 'open' || issue.id.startsWith("autofix-")}
+              disabled={implementingId === issue.id || issue.status !== 'open'}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
             >
               {implementingId === issue.id ? "Starting..." : issue.id.startsWith("autofix-") && issue.status === 'open' ? "Auto-starting..." : "Implement"}

@@ -192,6 +192,8 @@ class AgentUseCase:
                     logger.info(f"[{upload_id}] Triggered deploy_production for autofix.")
                 except Exception as e:
                     logger.error(f"[{upload_id}] Autofix failed: {e}")
+                    # Revert status to open so it's not stuck in the UI
+                    await self.repo.update_issue(upload_id, issue_id, {"status": "open"})
 
         logger.info(f"[{upload_id}] Invoking IssuePlannerClient to plan missing features")
         client = IssuePlannerClient(self.deps)
