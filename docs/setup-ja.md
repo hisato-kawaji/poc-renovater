@@ -1,6 +1,6 @@
 # セットアップ手順（日本語）
 
-PoC Foundry 開発環境を Claude Code 主導でセットアップするための手順書。
+PoC Renovater 開発環境を Claude Code 主導でセットアップするための手順書。
 スラッシュコマンドはすべて `.claude/commands/` に定義されており、内容は `CLAUDE.md`（英語）からたどれる。
 
 ## 前提
@@ -54,7 +54,7 @@ eval "$(direnv hook zsh)"
 実行内容:
 
 1. アクティブな gcloud アカウントを確認。違っていたら停止して質問。
-2. GCP プロジェクト（既定: `poc-foundry-<任意のサフィックス>`）を作成。
+2. GCP プロジェクト（既定: `poc-renovater-<任意のサフィックス>`）を作成。
 3. 課金アカウントをリンク（候補一覧から選択）。
 4. 必要 API を有効化（`docs/planning.md` §14.1 のリスト全部）。
 5. Terraform state 用 GCS バケット `gs://<project-id>-tfstate` を `asia-northeast1` に作成、バージョニング ON。
@@ -79,7 +79,7 @@ eval "$(direnv hook zsh)"
 | `service_accounts.tf` | `sa-api` / `sa-deploy` / `sa-sandbox` / `sa-preview-runtime` |
 | `storage.tf` | アップロード zip 用 GCS バケット（90日ライフサイクル） |
 | `firestore.tf` | Firestore Native（`(default)` データベース） |
-| `artifact_registry.tf` | Docker レジストリ `poc-foundry` |
+| `artifact_registry.tf` | Docker レジストリ `poc-renovater` |
 | `secret_manager.tf` | `GITHUB_APP_PRIVATE_KEY` / `GITHUB_WEBHOOK_SECRET` / `ANTHROPIC_API_KEY` のシークレットコンテナ |
 
 `terraform.tfvars` は `terraform.tfvars.example` をコピーして書き換えてください（バケット名は global unique 必須）。

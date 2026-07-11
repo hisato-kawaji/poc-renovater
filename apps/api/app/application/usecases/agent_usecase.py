@@ -170,7 +170,7 @@ class AgentUseCase:
                     "url": created_autofix_issues[i]["url"]
                 }
                 
-                # Save to PoC Foundry DB so it appears in the UI
+                # Save to PoC Renovater DB so it appears in the UI
                 await self.repo.save_issue(upload_id, issue_id, issue_doc)
                 
                 try:
@@ -181,7 +181,7 @@ class AgentUseCase:
                     pr_number = int(pr_url.split("/")[-1])
                     self.scm.merge_pr(repo_name, pr_number)
                     
-                    # Mark as completed in PoC Foundry UI
+                    # Mark as completed in PoC Renovater UI
                     await self.repo.update_issue(upload_id, issue_id, {"status": "completed"})
                     
                     logger.info(f"[{upload_id}] Autofix merged successfully.")

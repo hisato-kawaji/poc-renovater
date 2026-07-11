@@ -15,7 +15,7 @@
 
 ## 0. このドキュメントの目的
 
-PoC Foundry が改善する **Managed Agent を A2A プロトコル準拠の "サーバ" として常に立てる** 方針と、その実装上の規約を確定する。
+PoC Renovater が改善する **Managed Agent を A2A プロトコル準拠の "サーバ" として常に立てる** 方針と、その実装上の規約を確定する。
 
 - **Managed Agent 側**: AgentCard を公開し、JSON-RPC エンドポイントを実装。テンプレートが雛形を注入。
 - **Foundry 側**: Managed Agent を **A2A クライアントとして呼ぶ**（改善後の動作検証、Phase 5+）。

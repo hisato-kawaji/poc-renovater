@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     database_url: Optional[str] = Field(None, env="DATABASE_URL")
     preview_ttl_hours: int = 48
     preview_max_concurrent: int = 2
-    pubsub_topic_tasks: str = "poc-foundry-tasks"
+    pubsub_topic_tasks: str = "poc-renovater-tasks"
 
 def get_settings() -> Settings:
     return Settings()

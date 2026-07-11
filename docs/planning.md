@@ -1,4 +1,4 @@
-# PoC Foundry — 設計ドキュメント（叩き台 v0.3）
+# PoC Renovater — 設計ドキュメント（叩き台 v0.3）
 
 - 最終更新: 2026-06-21
 - ステータス: Draft（実装着手前のレビュー用 / Claude Code への引き渡し用）
@@ -17,7 +17,7 @@
 1. このファイルをリポジトリに `docs/DESIGN.md` として配置する。
 2. リポジトリ直下に `CLAUDE.md`（§13 にテンプレート）を作り、規約・コマンド・本書への参照を書く。
 3. §12 の実装フェーズを**上から順に** Claude Code に依頼する。1 フェーズ = 1 PR を基本とする。
-4. 各フェーズの「完了条件（DoD）」を満たすまで次に進まない。これは PoC Foundry 自身のガードレール思想（方針が固まるまで先に進まない）と同じ。
+4. 各フェーズの「完了条件（DoD）」を満たすまで次に進まない。これは PoC Renovater 自身のガードレール思想（方針が固まるまで先に進まない）と同じ。
 
 ---
 
@@ -55,7 +55,7 @@
 
 | 用語 | 意味 |
 |---|---|
-| Managed Agent | アップロードされ、PoC Foundry 上で管理対象になった PoC 一件 |
+| Managed Agent | アップロードされ、PoC Renovater 上で管理対象になった PoC 一件 |
 | Agent Profile | その PoC が「何のエージェントか」を定義するメタ情報 |
 | Improvement Charter | 改善方針書。品質スコアが閾値以上でないとコード変更に進めない |
 | Charter Gate | Charter 品質スコアによる進行ブロック（中核ガードレール） |
@@ -110,7 +110,7 @@
 ## 5. リポジトリ構成（モノレポ）
 
 ```
-poc-foundry/
+poc-renovater/
 ├─ CLAUDE.md                 # Claude Code 用の規約・コマンド・本書への参照
 ├─ docs/
 │  └─ DESIGN.md              # 本ドキュメント
@@ -145,7 +145,7 @@ poc-foundry/
 │  ├─ Procfile               # or Dockerfile.tmpl
 │  └─ cloudrun/service.yaml
 ├─ infra/                    # Terraform（GCP プロビジョニング）
-└─ .github/workflows/        # PoC Foundry 自身の CI
+└─ .github/workflows/        # PoC Renovater 自身の CI
 ```
 
 ---
@@ -507,7 +507,7 @@ MVP は GCP プロジェクトを分けず、資源名プレフィックスで P
 ## 13. CLAUDE.md テンプレート（リポジトリ直下に置く）
 
 ```markdown
-# PoC Foundry — Claude Code 規約
+# PoC Renovater — Claude Code 規約
 
 ## このリポジトリについて
 詳細設計は docs/DESIGN.md を参照（必読）。実装は docs/DESIGN.md §12 のフェーズ順に進める。

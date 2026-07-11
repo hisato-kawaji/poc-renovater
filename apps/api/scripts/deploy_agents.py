@@ -13,7 +13,7 @@ agents = [
 ]
 
 def main():
-    project = os.getenv("GOOGLE_CLOUD_PROJECT", "YOUR_PROJECT_ID")
+    project = os.getenv("GOOGLE_CLOUD_PROJECT", "MY_GCP_PROJECT")
     region = os.getenv("GOOGLE_CLOUD_REGION", "asia-northeast1")
     
     for agent_path, agent_name in agents:

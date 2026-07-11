@@ -407,9 +407,9 @@ apps/web/
 
 ```typescript
 // apps/web/lib/schemas.ts
-export * from "@poc-foundry/shared";
+export * from "@poc-renovater/shared";
 
-import { AgentSchema, type Agent } from "@poc-foundry/shared";
+import { AgentSchema, type Agent } from "@poc-renovater/shared";
 // AgentSchema は zod 互換 / JSON Schema 由来。
 // API レスポンスは AgentSchema.parse(json) で必ず検証してから state に入れる
 ```

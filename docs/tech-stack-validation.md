@@ -11,7 +11,7 @@
 
 ## 0. このドキュメントの目的
 
-PoC Foundry が前提とする技術スタックには、**preview / 急速進化中 / リージョン未確定**な要素が含まれている。具体的には:
+PoC Renovater が前提とする技術スタックには、**preview / 急速進化中 / リージョン未確定**な要素が含まれている。具体的には:
 
 - Vertex AI Gemini 3（preview、global endpoint 縛り）
 - Google ADK（Agent Development Kit、活発に変化中）

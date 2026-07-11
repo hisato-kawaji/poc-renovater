@@ -1,4 +1,4 @@
-# PoC Foundry AGY - 実装計画書 (Job Tracker & HITL)
+# PoC Renovater AGY - 実装計画書 (Job Tracker & HITL)
 
 ## 1. 全体コンセプト
 今回のアーキテクチャ再設計に基づき、**「PoCパイプラインの可視化」**と**「エラーからの自己修復・手動再開 (Human in the loop)」**をアプリケーションのコア体験として実装します。

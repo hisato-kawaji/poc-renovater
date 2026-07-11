@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     setup_memory_logging()
     yield
 
-app = FastAPI(title="PoC Foundry API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="PoC Renovater API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

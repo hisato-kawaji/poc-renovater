@@ -25,7 +25,7 @@
 | Linter | ESLint（`@typescript-eslint/strict-type-checked`）+ Biome（formatter） |
 | Test | Vitest + React Testing Library（unit）+ Playwright（e2e） |
 | Mock | MSW（API モック） |
-| 型 | `@poc-foundry/shared`（packages/shared/ts/src 生成物）|
+| 型 | `@poc-renovater/shared`（packages/shared/ts/src 生成物）|
 
 ---
 
@@ -125,7 +125,7 @@ export default async function Page({ params }: { params: { agentId: string } }) 
 
 ```typescript
 // apps/web/lib/api/server.ts
-import { AgentSchema, type Agent } from "@poc-foundry/shared";
+import { AgentSchema, type Agent } from "@poc-renovater/shared";
 
 export async function getAgent(id: string): Promise<Agent> {
   const r = await fetch(`${process.env.API_BASE_URL}/api/v1/agents/${id}`, {
@@ -165,7 +165,7 @@ import { useEffect } from "react";
 import { onSnapshot, doc } from "firebase/firestore";
 import { useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
-import { AgentSchema } from "@poc-foundry/shared";
+import { AgentSchema } from "@poc-renovater/shared";
 
 export function useAgentLive(agentId: string) {
   const qc = useQueryClient();
@@ -228,7 +228,7 @@ Phase 3 での運用監視に向けて、システム全体の状況を把握す
 "use client";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CharterMessageInputSchema } from "@poc-foundry/shared";
+import { CharterMessageInputSchema } from "@poc-renovater/shared";
 
 export function CharterInput({ agentId }: { agentId: string }) {
   const form = useForm({ resolver: zodResolver(CharterMessageInputSchema) });

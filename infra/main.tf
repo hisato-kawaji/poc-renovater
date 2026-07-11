@@ -55,8 +55,8 @@ resource "google_firestore_database" "default" {
 # Artifact Registry
 resource "google_artifact_registry_repository" "repo" {
   location      = var.region
-  repository_id = "poc-foundry"
-  description   = "Docker repository for PoC Foundry"
+  repository_id = "poc-renovater"
+  description   = "Docker repository for PoC Renovater"
   format        = "DOCKER"
 }
 
@@ -109,7 +109,7 @@ resource "google_project_iam_member" "api_vertex" {
 
 # Cloud Run Service for API
 resource "google_cloud_run_v2_service" "api" {
-  name     = "poc-foundry-api"
+  name     = "poc-renovater-api"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
@@ -165,7 +165,7 @@ resource "google_cloud_run_service_iam_member" "api_invoker" {
 
 # Cloud Run Service for Web (Frontend)
 resource "google_cloud_run_v2_service" "web" {
-  name     = "poc-foundry-web"
+  name     = "poc-renovater-web"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
@@ -211,7 +211,7 @@ resource "google_cloud_run_service_iam_member" "web_invoker" {
 
 # Pub/Sub Topic for Tasks
 resource "google_pubsub_topic" "tasks" {
-  name = "poc-foundry-tasks"
+  name = "poc-renovater-tasks"
 }
 
 # Allow API SA to publish
@@ -237,7 +237,7 @@ resource "google_cloud_run_service_iam_member" "pubsub_invoker_run" {
 
 # Pub/Sub Push Subscription
 resource "google_pubsub_subscription" "tasks_push" {
-  name  = "poc-foundry-tasks-push"
+  name  = "poc-renovater-tasks-push"
   topic = google_pubsub_topic.tasks.name
 
   push_config {

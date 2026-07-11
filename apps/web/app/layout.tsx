@@ -3,7 +3,7 @@ import "./globals.css";
 import { AppLayout } from "../components/AppLayout";
 
 export const metadata: Metadata = {
-  title: "PoC Foundry",
+  title: "PoC Renovater",
   description: "AI-powered PoC development platform",
 };
 

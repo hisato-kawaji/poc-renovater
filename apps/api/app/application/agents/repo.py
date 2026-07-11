@@ -44,6 +44,6 @@ class RepoAgentClient:
                     rel_path = rel_path[:-5]
                 files_to_commit[rel_path] = content
 
-        self.deps.scm.commit_files(actual_repo_name, files_to_commit, "Initial commit from PoC Foundry with templates")
+        self.deps.scm.commit_files(actual_repo_name, files_to_commit, "Initial commit from PoC Renovater with templates")
         
         return url, actual_repo_name

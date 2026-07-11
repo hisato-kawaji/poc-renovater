@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-PROJECT_ID="YOUR_PROJECT_ID"
-REPO="YOUR_GITHUB_ACCOUNT/poc-foundry-agy"
+PROJECT_ID="MY_GCP_PROJECT"
+REPO="YOUR_GITHUB_ACCOUNT/poc-renovater-agy"
 SA_NAME="github-actions"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 POOL_NAME="github-pool"

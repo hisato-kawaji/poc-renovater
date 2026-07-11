@@ -27,8 +27,8 @@ variable "region" {
 # ---------------------------------------------------------
 # Cloud SQL (PostgreSQL)
 # ---------------------------------------------------------
-resource "google_sql_database_instance" "poc_foundry_db" {
-  name             = "poc-foundry-db"
+resource "google_sql_database_instance" "poc_renovater_db" {
+  name             = "poc-renovater-db"
   database_version = "POSTGRES_15"
   region           = var.region
 
@@ -41,13 +41,13 @@ resource "google_sql_database_instance" "poc_foundry_db" {
 }
 
 resource "google_sql_database" "default_db" {
-  name     = "poc_foundry"
-  instance = google_sql_database_instance.poc_foundry_db.name
+  name     = "poc_renovater"
+  instance = google_sql_database_instance.poc_renovater_db.name
 }
 
 resource "google_sql_user" "default_user" {
   name     = "foundry_api"
-  instance = google_sql_database_instance.poc_foundry_db.name
+  instance = google_sql_database_instance.poc_renovater_db.name
   password = var.db_password
 }
 
@@ -60,16 +60,16 @@ variable "db_password" {
 # Cloud Run (API)
 # ---------------------------------------------------------
 resource "google_cloud_run_v2_service" "api_service" {
-  name     = "poc-foundry-api"
+  name     = "poc-renovater-api"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
   template {
     containers {
-      image = "gcr.io/${var.project_id}/poc-foundry-api:latest"
+      image = "gcr.io/${var.project_id}/poc-renovater-api:latest"
       env {
         name  = "DATABASE_URL"
-        value = "postgresql+asyncpg://${google_sql_user.default_user.name}:${var.db_password}@/${google_sql_database.default_db.name}?host=/cloudsql/${google_sql_database_instance.poc_foundry_db.connection_name}"
+        value = "postgresql+asyncpg://${google_sql_user.default_user.name}:${var.db_password}@/${google_sql_database.default_db.name}?host=/cloudsql/${google_sql_database_instance.poc_renovater_db.connection_name}"
       }
     }
   }
@@ -98,17 +98,17 @@ resource "google_compute_backend_service" "backend" {
 }
 
 resource "google_compute_url_map" "url_map" {
-  name            = "poc-foundry-urlmap"
+  name            = "poc-renovater-urlmap"
   default_service = google_compute_backend_service.backend.id
 }
 
 resource "google_compute_target_http_proxy" "http_proxy" {
-  name    = "poc-foundry-http-proxy"
+  name    = "poc-renovater-http-proxy"
   url_map = google_compute_url_map.url_map.id
 }
 
 resource "google_compute_global_forwarding_rule" "default" {
-  name                  = "poc-foundry-forwarding-rule"
+  name                  = "poc-renovater-forwarding-rule"
   target                = google_compute_target_http_proxy.http_proxy.id
   port_range            = "80"
   load_balancing_scheme = "EXTERNAL_MANAGED"

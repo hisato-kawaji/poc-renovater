@@ -98,9 +98,9 @@ infra/
 | プロジェクト | `<product>` | `poc-recycle` |
 | GCS バケット | `<project>-<purpose>` | `poc-recycle-uploads`, `poc-recycle-tfstate`, `poc-recycle-sandbox` |
 | SA | `sa-<role>` | `sa-api`, `sa-deploy`, `sa-sandbox`, `sa-preview-runtime` |
-| Artifact Registry repo | `<product>` | `poc-foundry` |
+| Artifact Registry repo | `<product>` | `poc-renovater` |
 | Cloud Run service (preview) | `poc-<agentId>-pr<NN>` | `poc-abc123-pr-5`（planning §10.5）|
-| Cloud Run service (platform) | `<product>-<app>` | `poc-foundry-api`, `poc-foundry-web` |
+| Cloud Run service (platform) | `<product>-<app>` | `poc-renovater-api`, `poc-renovater-web` |
 | Secret | `<UPPER_SNAKE>` | `GITHUB_APP_PRIVATE_KEY` |
 
 **禁則**:
@@ -113,7 +113,7 @@ infra/
 
 ```hcl
 labels = {
-  product      = "poc-foundry"
+  product      = "poc-renovater"
   managed_by   = "terraform"
   env          = var.env             # prod / dev
   cost_center  = "platform"
@@ -160,7 +160,7 @@ destroy したいときは **明示的に lifecycle ブロックを外す PR を
 | 項目 | 採用 |
 |---|---|
 | バックエンド | GCS（`gs://poc-recycle-tfstate`） |
-| Prefix | `poc-foundry/state`（env 増えたら `poc-foundry/<env>/state`） |
+| Prefix | `poc-renovater/state`（env 増えたら `poc-renovater/<env>/state`） |
 | バージョニング | **ON**（既設） |
 | Lock | GCS の built-in (Terraform 1.5+ で `use_lockfile = true`) |
 | 暗号化 | デフォルト GCP-managed key（CMEK 不要） |

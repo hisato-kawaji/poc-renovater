@@ -1,6 +1,6 @@
-# PoC Foundry (Antigravity Agent)
+# PoC Renovater (Antigravity Agent)
 
-**PoC Foundry** は、Google Cloud が提供する Agentic AI 開発・実行基盤（ADK / LangGraph等）を用いて、ユーザーからアップロードされたPoC（Proof of Concept）コードを自律的に解析・改善・コンテナ化・デプロイまで行うシステムのデモ環境です。
+**PoC Renovater** は、Google Cloud が提供する Agentic AI 開発・実行基盤（ADK / LangGraph等）を用いて、ユーザーからアップロードされたPoC（Proof of Concept）コードを自律的に解析・改善・コンテナ化・デプロイまで行うシステムのデモ環境です。
 
 現在、このシステム自体も **Google Antigravity**（AI Coding Assistant）によって自律的に開発が進められています。
 

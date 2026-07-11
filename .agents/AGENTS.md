@@ -1,4 +1,4 @@
-# PoC Foundry (Antigravity Rules)
+# PoC Renovater (Antigravity Rules)
 
 ## Overview
 This file defines rules and constraints for Antigravity agents working on this project.

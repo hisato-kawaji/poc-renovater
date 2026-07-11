@@ -1,6 +1,6 @@
-# PoC Foundry AGY - 総合実装計画書 (Master Implementation Plan)
+# PoC Renovater AGY - 総合実装計画書 (Master Implementation Plan)
 
-本書は、PoC Foundry AGY アプリケーション全体の必要機能を洗い出し、フロントエンド・バックエンド・AIエージェント・インフラのすべての観点を網羅した総合的な実装計画書である。
+本書は、PoC Renovater AGY アプリケーション全体の必要機能を洗い出し、フロントエンド・バックエンド・AIエージェント・インフラのすべての観点を網羅した総合的な実装計画書である。
 （※直近のアーキテクチャ見直しによる「Job Tracker」および「Human in the loop」機能も包含する）
 
 ---

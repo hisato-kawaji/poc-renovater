@@ -10,7 +10,7 @@
 
 ## 0. このドキュメントの目的
 
-Managed Repo（PoC Foundry がアップロードを受けて作成・改善する各 PoC のリポジトリ）に **何を注入するか** を確定する。
+Managed Repo（PoC Renovater がアップロードを受けて作成・改善する各 PoC のリポジトリ）に **何を注入するか** を確定する。
 
 Managed PoC は次のいずれか（または混合）を想定:
 
@@ -206,7 +206,7 @@ jobs:
 ```markdown
 # Architecture
 
-This repository was initialized from PoC Foundry template `{{template_version}}`.
+This repository was initialized from PoC Renovater template `{{template_version}}`.
 
 ## Stack
 - Language: {{lang}}
@@ -232,7 +232,7 @@ See `a2a/` for the static AgentCard and `src/interface/a2a/` for the server.
 
 ## Operating notes
 - Charter: see CHARTER.md
-- Improvement plan: managed by PoC Foundry (issues are auto-created)
+- Improvement plan: managed by PoC Renovater (issues are auto-created)
 ```
 
 ---
@@ -316,7 +316,7 @@ src/
 | テンプレ展開エンジン（Mustache / Jinja / cookiecutter） | 未決 | Phase 3 |
 | TypeScript / Go / Rust テンプレの追加 | MVP は Python / TS のみ | Phase 1-2 確定後 |
 | LLM provider 切替（Vertex / Anthropic / OpenAI）の抽象化レベル | LLM module 内で吸収 | Phase 3 |
-| Managed PoC 側の packages/shared 連携（PoC Foundry の型を借りるか） | 借りない方針（独立性のため） | Phase 3 |
+| Managed PoC 側の packages/shared 連携（PoC Renovater の型を借りるか） | 借りない方針（独立性のため） | Phase 3 |
 
 ---
 
