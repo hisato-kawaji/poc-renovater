@@ -56,6 +56,11 @@ class FirestoreAgentRepository(AgentRepository):
             doc_ref = self.collection.document(upload_id).collection("pulls").document(pull_doc["id"])
             await asyncio.to_thread(doc_ref.update, updates)
 
+    async def get_deployments(self, upload_id: str) -> List[Dict[str, Any]]:
+        doc_ref = self.collection.document(upload_id)
+        deployments = await asyncio.to_thread(lambda: list(doc_ref.collection("deployments").get()))
+        return [{"id": d.id, **d.to_dict()} for d in deployments]
+
     async def save_deployment(self, upload_id: str, deployment_data: Dict[str, Any]) -> None:
         doc_ref = self.collection.document(upload_id).collection("deployments")
         await asyncio.to_thread(doc_ref.add, deployment_data)
@@ -70,3 +75,24 @@ class FirestoreAgentRepository(AgentRepository):
     async def save_message(self, upload_id: str, message_data: Dict[str, Any]) -> None:
         doc_ref = self.collection.document(upload_id).collection("messages")
         await asyncio.to_thread(doc_ref.add, message_data)
+
+    # --- Job Management ---
+    async def get_jobs(self, upload_id: str) -> List[Dict[str, Any]]:
+        doc_ref = self.collection.document(upload_id)
+        jobs = await asyncio.to_thread(lambda: list(doc_ref.collection("jobs").get()))
+        return [{"id": j.id, **j.to_dict()} for j in jobs]
+
+    async def get_job(self, upload_id: str, job_id: str) -> Optional[Dict[str, Any]]:
+        doc_ref = self.collection.document(upload_id).collection("jobs").document(job_id)
+        doc = await asyncio.to_thread(doc_ref.get)
+        if not doc.exists:
+            return None
+        return {"id": doc.id, **doc.to_dict()}
+
+    async def save_job(self, upload_id: str, job_id: str, job_data: Dict[str, Any]) -> None:
+        doc_ref = self.collection.document(upload_id).collection("jobs").document(job_id)
+        await asyncio.to_thread(doc_ref.set, job_data)
+
+    async def update_job(self, upload_id: str, job_id: str, updates: Dict[str, Any]) -> None:
+        doc_ref = self.collection.document(upload_id).collection("jobs").document(job_id)
+        await asyncio.to_thread(doc_ref.update, updates)
