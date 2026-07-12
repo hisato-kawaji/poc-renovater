@@ -34,7 +34,7 @@ export function Sidebar() {
               <Cpu size={18} className="text-white" />
             </div>
             <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
-              Foundry
+              PoC Renovater
             </span>
           </motion.div>
         )}
