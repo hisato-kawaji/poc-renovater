@@ -15,6 +15,7 @@ type Agent = {
     score: number;
     decision: string;
   };
+  createdAt?: string;
 };
 
 export default function Dashboard() {
@@ -77,6 +78,13 @@ export default function Dashboard() {
                     </span>
                   </div>
                   
+                  {agent.createdAt && (
+                    <div className="mb-3 text-sm">
+                      <span className="text-gray-500 mr-2">Created:</span>
+                      <span className="font-medium text-gray-900">{new Date(agent.createdAt).toLocaleString()}</span>
+                    </div>
+                  )}
+
                   {agent.charter && (
                     <div className="mb-3 text-sm">
                       <span className="text-gray-500 mr-2">Charter Score:</span>
