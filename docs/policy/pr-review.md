@@ -60,7 +60,7 @@ PR の **自動レビューと人間レビューの併用ガードレール**を
 手順:
 
 1. `gh issue create --assignee YOUR_GITHUB_ACCOUNT` で起票。タイトルは `[Follow-up #<PR>] <one-line>`、本文に **元 PR へのリンク・`path:line` 根拠・スコープ・受け入れ条件** を含める。次フェーズをブロックするなら `--label priority:high`、それ以外は default（必要なら `enhancement`）。
-2. **重複防止（完全タイトル一致で判定）**: 起票前に `gh issue list --repo YOUR_ORG/YOUR_REPO --search "Follow-up #<PR>" --state open` で候補を引き、**`[Follow-up #<PR>] <one-line>` の完全タイトル一致**で既存判定する。prefix（`[Follow-up #<PR>]`）だけで判定すると、同一 PR の **別 finding** を既存 issue が誤って抑制し、また **同一 finding** の再レビューも取りこぼす。GitHub 検索は `[` / `#` をトークン分割してゆるく当たるため、検索はゆるく引いて **最終判定は取得結果のタイトル文字列の完全一致**で行う。同一 finding は二重起票しない。
+2. **重複防止（完全タイトル一致で判定）**: 起票前に `gh issue list --repo YOUR_GITHUB_ACCOUNT/poc-recycle --search "Follow-up #<PR>" --state open` で候補を引き、**`[Follow-up #<PR>] <one-line>` の完全タイトル一致**で既存判定する。prefix（`[Follow-up #<PR>]`）だけで判定すると、同一 PR の **別 finding** を既存 issue が誤って抑制し、また **同一 finding** の再レビューも取りこぼす。GitHub 検索は `[` / `#` をトークン分割してゆるく当たるため、検索はゆるく引いて **最終判定は取得結果のタイトル文字列の完全一致**で行う。同一 finding は二重起票しない。
 3. verdict 側では、その行を **PASS（または「WARN だが issue #N で追跡」）** とし、根拠 / 推奨アクションに **起票した issue 番号を明記**する。これにより本 PR の判定は本来のスコープだけで決まり、追加対応は roadmap（優先度順 pickup）に乗る。
 
 切り出してよいのは「実在するが今ここで直す必要のない」指摘のみ。本 PR の正しさ・受け入れ条件に関わる指摘は issue に逃がさず、その PR で直す。
