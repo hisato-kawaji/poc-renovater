@@ -56,9 +56,9 @@ class DeployAgentClient:
                         os.remove(lock_path)
 
             # Use real Firebase credentials so preview environments can test data saving
-            firebase_project_id = "YOUR_PROJECT_ID"
-            firebase_api_key = "REDACTED_FIREBASE_API_KEY"
-            firebase_auth_domain = "YOUR_PROJECT_ID.firebaseapp.com"
+            firebase_project_id = os.getenv("NEXT_PUBLIC_FIREBASE_PROJECT_ID", "YOUR_PROJECT_ID")
+            firebase_api_key = os.getenv("NEXT_PUBLIC_FIREBASE_API_KEY", "YOUR_FIREBASE_API_KEY")
+            firebase_auth_domain = os.getenv("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", f"{firebase_project_id}.firebaseapp.com")
             
             env_vars = f"NEXT_PUBLIC_FIREBASE_PROJECT_ID={firebase_project_id},NEXT_PUBLIC_FIREBASE_API_KEY={firebase_api_key},NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN={firebase_auth_domain}"
 
