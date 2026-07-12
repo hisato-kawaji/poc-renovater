@@ -5,3 +5,5 @@ __pycache__/
 .serena/
 infra/terraform.tfstate*
 infra/terraform.tfvars
+*.zip
+.claude/
