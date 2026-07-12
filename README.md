@@ -36,6 +36,14 @@
 - Terraform を用いた Cloud Run およびリソースの自動展開
 - GitHub Webhook連携によるCI/CD自動実行
 
+## お試し方法 (How to Try)
+
+このリポジトリには、動作確認用のサンプルプロジェクトが含まれています。UI上からこのサンプルをアップロードすることで、Agentによるコード分析〜GitHubリポジトリ化の一連のフローを体験できます。
+
+1. `sample/todo-app-passed.zip` というファイルが用意されていることを確認します（存在しない場合は、`sample/todo-app-passed/` ディレクトリをZIP圧縮して作成してください）。
+2. フロントエンドの画面（ブラウザ）を開き、ファイルアップロードエリアにこの `todo-app-passed.zip` をドラッグ＆ドロップするか、ファイル選択ダイアログからアップロードします。
+3. アップロード完了後、Agentによる分析（Analyzing）が開始され、しばらくすると分析結果が表示されます。
+
 ## Local Development
 
 ### 1. Backend (API) の起動
